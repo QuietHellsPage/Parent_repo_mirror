@@ -20,6 +20,8 @@ if ! gh label list --repo QuietHellsPage/$TARGET_REPO --json name -q '.[] | sele
 fi
 
 #Check PR and update branch
+git config user.name "github-actions[bot]"
+git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 if git show-ref --quiet refs/remotes/origin/$BRANCH_NAME; then
     git checkout $BRANCH_NAME
     git pull origin $BRANCH_NAME
