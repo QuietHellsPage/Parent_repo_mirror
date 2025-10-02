@@ -6,7 +6,7 @@ PR_NUMBER=$2
 TARGET_REPO="Child_repo_mirror"
 BRANCH_NAME="auto-update-from-$REPO_NAME-pr-$PR_NUMBER"
 
-#Clone target repo
+# Clone Target Repo
 rm -rf $TARGET_REPO
 
 git clone https://$GH_TOKEN@github.com/QuietHellsPage/$TARGET_REPO.git
@@ -14,14 +14,15 @@ cd $TARGET_REPO
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-#Create label
+# Create Label
 if ! gh label list --repo QuietHellsPage/$TARGET_REPO --json name -q '.[] | select(.name == "automated pr")' | grep -q "automated pr"; then
     gh label create "automated pr" --color "0E8A16" --description "Automated pull request" --repo QuietHellsPage/$TARGET_REPO
 fi
 
-#Check PR and update branch
+# Check PR and Updade Branch
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
 if git show-ref --quiet refs/remotes/origin/$BRANCH_NAME; then
     git checkout $BRANCH_NAME
     git pull origin $BRANCH_NAME
@@ -80,7 +81,7 @@ else
     echo "No changes to commit"
 fi
 
-#Create PR
+# Create PR
 TARGET_PR_NUMBER=$(gh pr list --repo QuietHellsPage/$TARGET_REPO --head $BRANCH_NAME --json number -q '.[0].number' 2>/dev/null || true)
 
 if [ -z "$TARGET_PR_NUMBER" ]; then
