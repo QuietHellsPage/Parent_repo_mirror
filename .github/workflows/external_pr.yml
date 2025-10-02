@@ -1,0 +1,28 @@
+name: "Create PR in external repository"
+
+on:
+    issue_comment:
+        types: [created]
+
+jobs:
+    CreatePR:
+        if: github.event.issue.pull_request != null && contains(github.event.comment.body, '[SYNC_TO_CHILD]') && github.event.issue.state == 'open'
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                ref: ${{ github.event.issue.pull_request.head.sha }}
+
+            - name: Setup GitHub CLI
+              run: |
+                bash external_pr_files/setup_cli.sh
+
+            - name: Sync repositories
+              run: |
+                bash external_pr_files/create_external_pr.sh "${{ github.event.repository.name }}" "${{ github.event.issue.number }}"
+              env:
+                GH_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
+                GITHUB_SHA: ${{ github.event.issue.pull_request.head.sha }}
+                GITHUB_ACTOR: ${{ github.event.comment.user.login }}
+                COMMENT_BODY: ${{ github.event.comment.body }}
