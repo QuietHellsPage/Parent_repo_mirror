@@ -23,6 +23,7 @@ jobs:
                 bash external_pr_files/create_external_pr.sh "${{ github.event.repository.name }}" "${{ github.event.issue.number }}"
               env:
                 GH_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
+                GITHUB_REPOSITORY: ${{ github.repository }}
                 GITHUB_SHA: ${{ github.event.issue.pull_request.head.sha }}
                 GITHUB_ACTOR: ${{ github.event.comment.user.login }}
                 COMMENT_BODY: ${{ github.event.comment.body }}
