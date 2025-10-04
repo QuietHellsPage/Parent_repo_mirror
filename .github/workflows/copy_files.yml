@@ -16,10 +16,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
+      - name: Setup FIPL environment
+        uses: fipl-hse/setup-env-action@v0.12
 
       - name: Install dependencies
         run: |
@@ -28,8 +26,8 @@ jobs:
           
       - name: Run copy script
         env:
-          SOURCE_REPO_URL: https://github.com/Niko-Zvar/Test_admin.git
-          TARGET_REPO_URL: https://github.com/Niko-Zvar/Test_public.git
+          SOURCE_REPO_URL: https://github.com/QuietHellsPage/Parent_repo_mirror.git
+          TARGET_REPO_URL: https://github.com/QuietHellsPage/Child_repo_mirror.git
           GITHUB_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           JSON_PATH: autosync/test_files.json
         run: |

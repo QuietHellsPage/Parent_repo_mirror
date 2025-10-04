@@ -80,8 +80,8 @@ def sync_repositories(source_repo: str, target_repo: str, token: str, file_mappi
 
 
 def main() -> None:
-    source_repo = os.getenv('SOURCE_REPO_URL', 'https://github.com/Niko-Zvar/Test_admin.git')
-    target_repo = os.getenv('TARGET_REPO_URL', 'https://github.com/Niko-Zvar/Test_public.git')
+    source_repo = os.getenv('SOURCE_REPO_URL', 'https://github.com/QuietHellsPage/Parent_repo_mirror.git')
+    target_repo = os.getenv('TARGET_REPO_URL', 'https://github.com/QuietHellsPage/Child_repo_mirror.git')
     token = os.getenv('GITHUB_TOKEN')
     config_path = os.getenv('JSON_PATH', 'autosync/test_files.json')
     
