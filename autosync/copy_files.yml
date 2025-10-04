@@ -1,0 +1,36 @@
+name: Copy Files
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Run copy script
+        env:
+          SOURCE_REPO_URL: https://github.com/Niko-Zvar/Test_admin.git
+          TARGET_REPO_URL: https://github.com/Niko-Zvar/Test_public.git
+          GITHUB_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          JSON_PATH: autosync/test_files.json
+        run: |
+          python autosync/copy_script.py
