@@ -39,7 +39,7 @@ def setup_git_user(repo_path: str) -> None:
 def copy_files(source_repo_path: str, target_repo_path: str, files: List[ModelItem]) -> None:
     for item in files:
         full_source_path = Path(source_repo_path) / item.source
-        full_target_path = Path(target_repo_path) / item.target
+        full_target_path = Path(target_repo_path) / item.target / Path(item.source).name
         
         full_target_path.parent.mkdir(parents=True, exist_ok=True)
         
