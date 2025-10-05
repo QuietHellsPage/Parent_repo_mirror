@@ -41,6 +41,9 @@ def copy_files(source_repo_path: str, target_repo_path: str, files: List[ModelIt
         full_source_path = Path(source_repo_path) / item.source
         full_target_path = Path(target_repo_path) / item.target / Path(item.source).name
         
+        if full_target_path.parent.exists() and full_target_path.parent.is_file():
+            full_target_path.parent.unlink()
+
         full_target_path.parent.mkdir(parents=True, exist_ok=True)
         
         try:
