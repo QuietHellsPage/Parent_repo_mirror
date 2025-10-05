@@ -1,0 +1,10 @@
+[
+  {
+    "source": "autosync/file_to_copy.txt",
+    "target": "works/"
+  },
+  {
+    "source": "autosync/file_to_copy_2.txt",
+    "target": "works/"
+  }
+]
