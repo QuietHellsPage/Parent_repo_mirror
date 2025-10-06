@@ -47,16 +47,17 @@ if [ -z "$CHANGED_FILES" ]; then
     exit 0
 fi
 
-BOM_EXISTS=false
-if git show parent-repo/$PR_BRANCH:bom.txt &>/dev/null; then
-    BOM_EXISTS=true
-    BOM_FILES=$(git show parent-repo/$PR_BRANCH:bom.txt 2>/dev/null | grep -v '^$' || echo "")
+JSON_EXISTS=false
+if git show parent-repo/$PR_BRANCH:autosync/test_files.json &>/dev/null; then
+    JSON_EXISTS=true
+    JSON_CONTENT=$(git show parent-repo/$PR_BRANCH:autosync/test_files.json 2>/dev/null || echo "")
+    JSON_FILES=$(echo "$JSON_CONTENT" | jq -r '.[].source' 2>/dev/null || echo "")
 fi
 
 HAS_CHANGES=false
 
 for file in $CHANGED_FILES; do
-    if [ "$BOM_EXISTS" = true ] && (echo "$BOM_FILES" | grep -q "^$file$" || echo "$BOM_FILES" | grep -q "^\./$file$"); then
+    if [ "$JSON_EXISTS" = true ] && echo "$JSON_FILES" | grep -q "^$file$"; then
         mkdir -p "$(dirname "$file")"
         if git show parent-repo/$PR_BRANCH:"$file" > "$file" 2>/dev/null; then
             git add "$file"
@@ -68,7 +69,7 @@ done
 PR_DELETED_FILES=$(gh pr view $PR_NUMBER --repo $GITHUB_REPOSITORY --json files --jq '.files[] | select(.status == "removed") | .path' 2>/dev/null || echo "")
 
 for deleted_file in $PR_DELETED_FILES; do
-    if [ "$BOM_EXISTS" = true ] && (echo "$BOM_FILES" | grep -q "^$deleted_file$" || echo "$BOM_FILES" | grep -q "^\./$deleted_file$"); then
+    if [ "$JSON_EXISTS" = true ] && echo "$JSON_FILES" | grep -q "^$deleted_file$"; then
         if [ -f "$deleted_file" ]; then
             git rm "$deleted_file" 2>/dev/null || rm "$deleted_file"
             HAS_CHANGES=true
