@@ -3,16 +3,37 @@ name: "Create PR in external repo using GH CLI"
 on:
   issue_comment:
     types: [created]
+  pull_request:
+    types: [closed]
 
 jobs:
   CreateExternalPR:
-    if: github.event.issue.pull_request != null && contains(github.event.comment.body, '[SYNC_TO_CHILD]') && github.event.issue.state == 'open'
+    if: |
+      (github.event_name == 'issue_comment' && 
+       github.event.issue.pull_request != null && 
+       contains(github.event.comment.body, '[SYNC_TO_CHILD]') && 
+       github.event.issue.state == 'open') ||
+      (github.event_name == 'pull_request' && 
+       github.event.pull_request.merged == true)
     runs-on: ubuntu-latest
 
     steps:
+      - name: Determine PR number and SHA based on trigger
+        id: trigger-info
+        run: |
+          if [ "${{ github.event_name }}" == "issue_comment" ]; then
+            echo "pr_number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+            echo "head_sha=${{ github.event.issue.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+            echo "actor=${{ github.event.comment.user.login }}" >> $GITHUB_OUTPUT
+          else
+            echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+            echo "head_sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+            echo "actor=${{ github.event.pull_request.user.login }}" >> $GITHUB_OUTPUT
+          fi
+
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.issue.pull_request.head.sha }}
+          ref: ${{ steps.trigger-info.outputs.head_sha }}
 
       - name: Setup GitHub CLI
         run: |
@@ -20,9 +41,9 @@ jobs:
 
       - name: Sync repositories
         run: |
-          bash external_pr_files/create_external_pr.sh "${{ github.event.repository.name }}" "${{ github.event.issue.number }}"
+          bash external_pr_files/create_external_pr.sh "${{ github.event.repository.name }}" "${{ steps.trigger-info.outputs.pr_number }}"
         env:
           GH_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
-          GITHUB_SHA: ${{ github.event.issue.pull_request.head.sha }}
-          GITHUB_ACTOR: ${{ github.event.comment.user.login }}
+          GITHUB_SHA: ${{ steps.trigger-info.outputs.head_sha }}
+          GITHUB_ACTOR: ${{ steps.trigger-info.outputs.actor }}
           COMMENT_BODY: ${{ github.event.comment.body }}

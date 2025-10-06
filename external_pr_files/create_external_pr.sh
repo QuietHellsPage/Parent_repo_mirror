@@ -6,6 +6,8 @@ PR_NUMBER=$2
 TARGET_REPO="Child_repo_mirror"
 BRANCH_NAME="auto-update-from-$REPO_NAME-pr-$PR_NUMBER"
 
+COMMENT_BODY=${COMMENT_BODY:-""}
+
 # Clone Target Repo
 rm -rf $TARGET_REPO
 
