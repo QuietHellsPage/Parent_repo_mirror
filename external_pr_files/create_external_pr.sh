@@ -58,9 +58,10 @@ HAS_CHANGES=false
 
 for file in $CHANGED_FILES; do
     if [ "$JSON_EXISTS" = true ] && echo "$JSON_FILES" | grep -q "^$file$"; then
-        mkdir -p "$(dirname "$file")"
-        if git show parent-repo/$PR_BRANCH:"$file" > "$file" 2>/dev/null; then
-            git add "$file"
+        TARGET_DIR=$(echo "$JSON_CONTENT" | jq -r --arg file "$file" '.[] | select(.source == $file) | .target')
+        mkdir -p "$TARGET_DIR"
+        if git show parent-repo/$PR_BRANCH:"$file" > "${TARGET_DIR}$(basename "$file")" 2>/dev/null; then
+            git add "${TARGET_DIR}$(basename "$file")"
             HAS_CHANGES=true
         fi
     fi
