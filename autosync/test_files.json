@@ -1,10 +1,10 @@
 [
   {
-    "source": "autosync/file_to_copy.txt",
-    "target": "works/"
+    "source": "lab_1_keywords_tfidf/main.py",
+    "target": "lab_1_keywords_tfidf/"
   },
   {
-    "source": "autosync/file_to_copy_2.txt",
-    "target": "works/"
+    "source": "lab_1_keywords_tfidf/README.rst",
+    "target": "lab_1_keywords_tfidf/"
   }
 ]
