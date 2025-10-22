@@ -1,5 +1,6 @@
 """
-Lab 1 tf-idf
+Lab 1 "tf"
+
 
 Extract keywords based on frequency related metrics
 """
