@@ -18,9 +18,6 @@ from lab_1_keywords_tfidf.main import (
 )
 
 
-
-
-
 def main() -> None:
     """
     Launches an implementation.
@@ -50,7 +47,7 @@ def main() -> None:
     key_words_chi = get_top_n(chi_values, 10) or []
     print(', '.join(key_words_chi))
     result = key_words_chi
-    assert result, "Keywords are not extracted"
+    assert result, "Keywords are not extract"
 
 if __name__ == "__main__":
     main()
