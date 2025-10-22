@@ -10,5 +10,9 @@
   {
     "source": "lab_1_keywords_tfidf/start.py",
     "target": "lab_1_keywords_tfidf/"
+  },
+  {
+    "source": "lab_2_spellcheck/",
+    "target": "lab_2_spellcheck/"
   }
 ]
