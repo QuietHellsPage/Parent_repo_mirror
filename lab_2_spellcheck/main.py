@@ -6,6 +6,7 @@ Lab 2.
 from typing import Literal
 
 
+
 def build_vocabulary(tokens: list[str]) -> dict[str, float] | None:
     """
     Build a vocabulary from the documents.
