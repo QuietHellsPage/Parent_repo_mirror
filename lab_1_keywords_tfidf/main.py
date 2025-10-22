@@ -176,6 +176,7 @@ def calculate_tf(frequencies: dict[str, int]) -> dict[str, float] | None:
     return {token: word_count / dict_length for token, word_count in frequencies.items()}
 
 
+
 def calculate_tfidf(term_freq: dict[str, float], idf: dict[str, float]) -> dict[str, float] | None:
     """
     Calculate TF-IDF score for tokens.
