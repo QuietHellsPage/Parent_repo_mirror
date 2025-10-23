@@ -1,50 +1,50 @@
 [
   {
     "source": "lab_1_keywords_tfidf/lab_1_keywords_tfidf.api.rst",
-    "target": "lab_1_keywords_tfidf/lab_1_keywords_tfidf.api.rst"
+    "target": "lab_1_keywords_tfidf/"
   },
   {
     "source": "lab_1_keywords_tfidf/README.rst",
-    "target": "lab_1_keywords_tfidf/README.rst"
+    "target": "lab_1_keywords_tfidf/"
   },
   {
     "source": "lab_1_keywords_tfidf/start.py",
-    "target": "lab_1_keywords_tfidf/start.py"
+    "target": "lab_1_keywords_tfidf/"
   },
   {
     "source": "lab_1_keywords_tfidf/main.py",
-    "target": "lab_1_keywords_tfidf/main.py"
+    "target": "lab_1_keywords_tfidf/"
   },
   {
     "source": "lab_2_spellcheck/lab_2_spellcheck.api.rst",
-    "target": "lab_2_spellcheck/lab_2_spellcheck.api.rst"
+    "target": "lab_2_spellcheck/"
   },
   {
     "source": "lab_2_spellcheck/README.rst",
-    "target": "lab_2_spellcheck/README.rst"
+    "target": "lab_2_spellcheck/"
   },
   {
     "source": "lab_2_spellcheck/start.py",
-    "target": "lab_2_spellcheck/start.py"
+    "target": "lab_2_spellcheck/"
   },
   {
     "source": "lab_2_spellcheck/main.py",
-    "target": "lab_2_spellcheck/main.py"
+    "target": "lab_2_spellcheck/"
   },
   {
     "source": "lab_3_generate_by_ngrams/lab_3_generate_by_ngrams.api.rst",
-    "target": "lab_3_generate_by_ngrams/lab_3_generate_by_ngrams.api.rst"
+    "target": "lab_3_generate_by_ngrams/"
   },
   {
     "source": "lab_3_generate_by_ngrams/README.rst",
-    "target": "lab_3_generate_by_ngrams/README.rst"
+    "target": "lab_3_generate_by_ngrams/"
   },
   {
     "source": "lab_3_generate_by_ngrams/start.py",
-    "target": "lab_3_generate_by_ngrams/start.py"
+    "target": "lab_3_generate_by_ngrams/"
   },
   {
     "source": "lab_3_generate_by_ngrams/main.py",
-    "target": "lab_3_generate_by_ngrams/main.py"
+    "target": "lab_3_generate_by_ngrams/"
   }
 ]
