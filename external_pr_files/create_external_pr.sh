@@ -21,7 +21,7 @@ if ! gh label list --repo QuietHellsPage/$TARGET_REPO --json name -q '.[] | sele
     gh label create "automated pr" --color "0E8A16" --description "Automated pull request" --repo QuietHellsPage/$TARGET_REPO
 fi
 
-# Check PR and Updade Branch
+# Check PR and Update Branch
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
@@ -59,9 +59,10 @@ HAS_CHANGES=false
 for file in $CHANGED_FILES; do
     if [ "$JSON_EXISTS" = true ] && echo "$JSON_FILES" | grep -q "^$file$"; then
         TARGET_DIR=$(echo "$JSON_CONTENT" | jq -r --arg file "$file" '.[] | select(.source == $file) | .target')
-        mkdir -p "$TARGET_DIR"
-        if git show parent-repo/$PR_BRANCH:"$file" > "${TARGET_DIR}$(basename "$file")" 2>/dev/null; then
-            git add "${TARGET_DIR}$(basename "$file")"
+        TARGET_DIR_ONLY=$(dirname "$TARGET_DIR")
+        mkdir -p "$TARGET_DIR_ONLY"
+        if git show parent-repo/$PR_BRANCH:"$file" > "$TARGET_DIR" 2>/dev/null; then
+            git add "$TARGET_DIR"
             HAS_CHANGES=true
         fi
     fi
@@ -71,8 +72,9 @@ PR_DELETED_FILES=$(gh pr view $PR_NUMBER --repo $GITHUB_REPOSITORY --json files 
 
 for deleted_file in $PR_DELETED_FILES; do
     if [ "$JSON_EXISTS" = true ] && echo "$JSON_FILES" | grep -q "^$deleted_file$"; then
-        if [ -f "$deleted_file" ]; then
-            git rm "$deleted_file" 2>/dev/null || rm "$deleted_file"
+        TARGET_PATH=$(echo "$JSON_CONTENT" | jq -r --arg file "$deleted_file" '.[] | select(.source == $file) | .target')
+        if [ -f "$TARGET_PATH" ]; then
+            git rm "$TARGET_PATH" 2>/dev/null || rm "$TARGET_PATH"
             HAS_CHANGES=true
         fi
     fi
@@ -89,7 +91,6 @@ fi
 TARGET_PR_NUMBER=$(gh pr list --repo QuietHellsPage/$TARGET_REPO --head $BRANCH_NAME --json number -q '.[0].number' 2>/dev/null || true)
 
 if [ -z "$TARGET_PR_NUMBER" ]; then
-    
     gh pr create \
         --repo QuietHellsPage/$TARGET_REPO \
         --head $BRANCH_NAME \
