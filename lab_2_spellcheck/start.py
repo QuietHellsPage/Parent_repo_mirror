@@ -22,6 +22,7 @@ def main() -> None:
     ):
         sentences = [f.read() for f in (f1, f2, f3, f4, f5)]
     result = None
+    t = None
     assert result, "Result is None"
 
 
