@@ -6,6 +6,7 @@ Submodules
 
 
 
+
 .. automodule:: lab_3_generate_by_ngrams.main
    :members:
    :undoc-members:

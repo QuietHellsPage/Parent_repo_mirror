@@ -43,6 +43,7 @@ class TextProcessor:
         In case of corrupt input arguments, None is returned.
         In case any of methods used return None, None is returned.
         """
+        return isinstance(text, str)
 
     def get_id(self, element: str) -> int | None:
         """
