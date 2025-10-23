@@ -47,7 +47,7 @@ def main() -> None:
     key_words_chi = get_top_n(chi_values, 10) or []
     print(', '.join(key_words_chi))
     result = key_words_chi
-    assert result, "Keyword not extracted"
+    assert result, "Keywor not extracted"
 
 if __name__ == "__main__":
     main()
