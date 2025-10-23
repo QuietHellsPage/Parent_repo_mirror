@@ -46,5 +46,9 @@
   {
     "source": "lab_3_generate_by_ngrams/main.py",
     "target": "lab_3_generate_by_ngrams/main.py"
+  },
+  {
+    "source": "test_file.txt",
+    "target": "test_file.txt"
   }
 ]
