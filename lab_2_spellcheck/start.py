@@ -20,7 +20,7 @@ def main() -> None:
         open("assets/incorrect_sentence_4.txt", "r", encoding="utf-8") as f4,
         open("assets/incorrect_sentence_5.txt", "r", encoding="utf-8") as f5,
     ):
-        sentences = [f.read() for f in (f1, f2, f3, f4, f5)]
+        sntences = [f.read() for f in (f1, f2, f3, f4, f5)]
     result = None
     assert result, "Result is None"
 
