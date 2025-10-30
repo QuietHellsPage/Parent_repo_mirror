@@ -51,32 +51,39 @@ JSON_EXISTS=false
 if git show parent-repo/$PR_BRANCH:autosync/test_files.json &>/dev/null; then
     JSON_EXISTS=true
     JSON_CONTENT=$(git show parent-repo/$PR_BRANCH:autosync/test_files.json 2>/dev/null || echo "")
-    JSON_FILES=$(echo "$JSON_CONTENT" | jq -r '.[].source' 2>/dev/null || echo "")
 fi
 
 HAS_CHANGES=false
 
 for file in $CHANGED_FILES; do
-    if [ "$JSON_EXISTS" = true ] && echo "$JSON_FILES" | grep -q "^$file$"; then
-        TARGET_DIR=$(echo "$JSON_CONTENT" | jq -r --arg file "$file" '.[] | select(.source == $file) | .target')
-        TARGET_DIR_ONLY=$(dirname "$TARGET_DIR")
-        mkdir -p "$TARGET_DIR_ONLY"
-        if git show parent-repo/$PR_BRANCH:"$file" > "$TARGET_DIR" 2>/dev/null; then
-            git add "$TARGET_DIR"
-            HAS_CHANGES=true
-        fi
+    if [ "$JSON_EXISTS" = true ]; then
+        TARGETS=$(echo "$JSON_CONTENT" | jq -r --arg file "$file" '.[] | select(.source == $file) | .target')
+        
+        for TARGET_DIR in $TARGETS; do
+            if [ -n "$TARGET_DIR" ]; then
+                TARGET_DIR_ONLY=$(dirname "$TARGET_DIR")
+                mkdir -p "$TARGET_DIR_ONLY"
+                if git show parent-repo/$PR_BRANCH:"$file" > "$TARGET_DIR" 2>/dev/null; then
+                    git add "$TARGET_DIR"
+                    HAS_CHANGES=true
+                fi
+            fi
+        done
     fi
 done
 
 PR_DELETED_FILES=$(gh pr view $PR_NUMBER --repo $GITHUB_REPOSITORY --json files --jq '.files[] | select(.status == "removed") | .path' 2>/dev/null || echo "")
 
 for deleted_file in $PR_DELETED_FILES; do
-    if [ "$JSON_EXISTS" = true ] && echo "$JSON_FILES" | grep -q "^$deleted_file$"; then
-        TARGET_PATH=$(echo "$JSON_CONTENT" | jq -r --arg file "$deleted_file" '.[] | select(.source == $file) | .target')
-        if [ -f "$TARGET_PATH" ]; then
-            git rm "$TARGET_PATH" 2>/dev/null || rm "$TARGET_PATH"
-            HAS_CHANGES=true
-        fi
+    if [ "$JSON_EXISTS" = true ]; then
+        TARGETS=$(echo "$JSON_CONTENT" | jq -r --arg file "$deleted_file" '.[] | select(.source == $file) | .target')
+        
+        for TARGET_PATH in $TARGETS; do
+            if [ -n "$TARGET_PATH" ] && [ -f "$TARGET_PATH" ]; then
+                git rm "$TARGET_PATH" 2>/dev/null || rm "$TARGET_PATH"
+                HAS_CHANGES=true
+            fi
+        done
     fi
 done
 
