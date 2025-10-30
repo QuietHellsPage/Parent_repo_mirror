@@ -22,9 +22,6 @@ if ! gh label list --repo QuietHellsPage/$TARGET_REPO --json name -q '.[] | sele
 fi
 
 # Check PR and Update Branch
-git config user.name "github-actions[bot]"
-git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
 if git show-ref --quiet refs/remotes/origin/$BRANCH_NAME; then
     git checkout $BRANCH_NAME
     git pull origin $BRANCH_NAME
@@ -35,7 +32,7 @@ fi
 PR_BRANCH=$(gh pr view $PR_NUMBER --repo $GITHUB_REPOSITORY --json headRefName --jq '.headRefName' 2>/dev/null || echo "")
 
 if [ -z "$PR_BRANCH" ]; then
-    exit 1
+    exit 0
 fi
 
 git remote add parent-repo https://github.com/$GITHUB_REPOSITORY.git
@@ -44,6 +41,7 @@ git fetch parent-repo
 CHANGED_FILES=$(gh pr view $PR_NUMBER --repo $GITHUB_REPOSITORY --json files --jq '.files[].path' 2>/dev/null || echo "")
 
 if [ -z "$CHANGED_FILES" ]; then
+    echo "No changed files found in PR $PR_NUMBER"
     exit 0
 fi
 
@@ -51,13 +49,35 @@ JSON_EXISTS=false
 if git show parent-repo/$PR_BRANCH:autosync/test_files.json &>/dev/null; then
     JSON_EXISTS=true
     JSON_CONTENT=$(git show parent-repo/$PR_BRANCH:autosync/test_files.json 2>/dev/null || echo "")
+    
+    if ! echo "$JSON_CONTENT" | jq -e . >/dev/null 2>&1; then
+        JSON_EXISTS=false
+    fi
+else
+    exit 0
 fi
 
 HAS_CHANGES=false
+FILES_TO_SYNC_FOUND=false
 
 for file in $CHANGED_FILES; do
     if [ "$JSON_EXISTS" = true ]; then
-        TARGETS=$(echo "$JSON_CONTENT" | jq -r --arg file "$file" '.[] | select(.source == $file) | .target')
+        TARGETS=$(echo "$JSON_CONTENT" | jq -r --arg file "$file" '.[] | select(.source == $file) | .target' 2>/dev/null || echo "")
+        if [ -n "$TARGETS" ]; then
+            FILES_TO_SYNC_FOUND=true
+            break
+        fi
+    fi
+done
+
+if [ "$FILES_TO_SYNC_FOUND" = false ]; then
+    echo "No files to sync found in PR $PR_NUMBER"
+    exit 0
+fi
+
+for file in $CHANGED_FILES; do
+    if [ "$JSON_EXISTS" = true ]; then
+        TARGETS=$(echo "$JSON_CONTENT" | jq -r --arg file "$file" '.[] | select(.source == $file) | .target' 2>/dev/null || echo "")
         
         for TARGET_DIR in $TARGETS; do
             if [ -n "$TARGET_DIR" ]; then
@@ -76,7 +96,7 @@ PR_DELETED_FILES=$(gh pr view $PR_NUMBER --repo $GITHUB_REPOSITORY --json files 
 
 for deleted_file in $PR_DELETED_FILES; do
     if [ "$JSON_EXISTS" = true ]; then
-        TARGETS=$(echo "$JSON_CONTENT" | jq -r --arg file "$deleted_file" '.[] | select(.source == $file) | .target')
+        TARGETS=$(echo "$JSON_CONTENT" | jq -r --arg file "$deleted_file" '.[] | select(.source == $file) | .target' 2>/dev/null || echo "")
         
         for TARGET_PATH in $TARGETS; do
             if [ -n "$TARGET_PATH" ] && [ -f "$TARGET_PATH" ]; then
@@ -92,21 +112,25 @@ if [ "$HAS_CHANGES" = true ]; then
     git push origin $BRANCH_NAME
 else
     echo "No changes to commit"
+    exit 0
 fi
 
-# Create PR
 TARGET_PR_NUMBER=$(gh pr list --repo QuietHellsPage/$TARGET_REPO --head $BRANCH_NAME --json number -q '.[0].number' 2>/dev/null || true)
 
-if [ -z "$TARGET_PR_NUMBER" ]; then
-    gh pr create \
-        --repo QuietHellsPage/$TARGET_REPO \
-        --head $BRANCH_NAME \
-        --base main \
-        --title "[Automated] Sync from $REPO_NAME PR $PR_NUMBER" \
-        --fill \
-        --label "automated pr" \
-        --assignee QuietHellsPage \
-        --reviewer QuietHellsPage
+if git log --oneline origin/main..$BRANCH_NAME | grep -q .; then
+    if [ -z "$TARGET_PR_NUMBER" ]; then
+        gh pr create \
+            --repo QuietHellsPage/$TARGET_REPO \
+            --head $BRANCH_NAME \
+            --base main \
+            --title "[Automated] Sync from $REPO_NAME PR $PR_NUMBER" \
+            --fill \
+            --label "automated pr" \
+            --assignee QuietHellsPage \
+            --reviewer QuietHellsPage
+    else
+        gh pr comment $TARGET_PR_NUMBER --repo QuietHellsPage/$TARGET_REPO --body "Automatically updated"
+    fi
 else
-    gh pr comment $TARGET_PR_NUMBER --repo QuietHellsPage/$TARGET_REPO --body "Automatically updated"
+    echo "No commits in branch $BRANCH_NAME - skipping PR creation"
 fi
