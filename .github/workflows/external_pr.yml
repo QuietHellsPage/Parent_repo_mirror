@@ -33,7 +33,7 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          ref: ${{ steps.trigger-info.outputs.head_sha }}
+          ref: ${{ github.event_name == 'pull_request' && github.base_ref || steps.trigger-info.outputs.sha }}
 
       - name: Setup GitHub CLI
         run: |
