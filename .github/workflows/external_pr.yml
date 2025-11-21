@@ -31,9 +31,19 @@ jobs:
             echo "actor=${{ github.event.pull_request.user.login }}" >> $GITHUB_OUTPUT
           fi
 
-      - uses: actions/checkout@v4
+      - name: Checkout main branch for merged PR
+        if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout PR branch for comments
+        if: github.event_name == 'issue_comment'
+        uses: actions/checkout@v4
         with:
           ref: ${{ steps.trigger-info.outputs.head_sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup GitHub CLI
         run: |
