@@ -22,15 +22,18 @@ fi
 
 # Check PR and Update Branch
 if git show-ref --quiet refs/remotes/origin/$BRANCH_NAME; then
-    # Переключаемся на main и удаляем локальную копию ветки
-    git checkout main
+    echo "Branch $BRANCH_NAME exists, deleting and recreating..."
+    # Удаляем ветку и локально и удаленно
+    git push origin --delete $BRANCH_NAME 2>/dev/null || true
     git branch -D $BRANCH_NAME 2>/dev/null || true
-    # Создаем новую ветку от актуального main
-    git checkout -b $BRANCH_NAME origin/main
-else
-    # Если ветки нет - создаем от текущего main
-    git checkout -b $BRANCH_NAME
+    # Ждем немного чтобы Git обновил ссылки
+    sleep 2
 fi
+
+# Создаем новую ветку от актуального main
+git checkout main
+git pull origin main
+git checkout -b $BRANCH_NAME
 
 # Получаем измененные файлы из PR
 CHANGED_FILES=$(gh pr view $PR_NUMBER --repo $GITHUB_REPOSITORY --json files --jq '.files[].path' 2>/dev/null || echo "")
