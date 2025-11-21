@@ -104,4 +104,31 @@ for deleted_file in $PR_DELETED_FILES; do
     fi
 done
 
-# Остальная часть скрипта без изменений...
+
+if [ "$HAS_CHANGES" = true ]; then
+    git commit -m "Sync changes from $REPO_NAME PR $PR_NUMBER"
+    git push origin $BRANCH_NAME
+else
+    echo "No changes to commit"
+    exit 0
+fi
+
+TARGET_PR_NUMBER=$(gh pr list --repo QuietHellsPage/$TARGET_REPO --head $BRANCH_NAME --json number -q '.[0].number' 2>/dev/null || true)
+
+if git log --oneline origin/main..$BRANCH_NAME | grep -q .; then
+    if [ -z "$TARGET_PR_NUMBER" ]; then
+        gh pr create \
+            --repo QuietHellsPage/$TARGET_REPO \
+            --head $BRANCH_NAME \
+            --base main \
+            --title "[Automated] Sync from $REPO_NAME PR $PR_NUMBER" \
+            --fill \
+            --label "automated pr" \
+            --assignee QuietHellsPage \
+            --reviewer QuietHellsPage
+    else
+        gh pr comment $TARGET_PR_NUMBER --repo QuietHellsPage/$TARGET_REPO --body "Automatically updated"
+    fi
+else
+    echo "No commits in branch $BRANCH_NAME - skipping PR creation"
+fi
