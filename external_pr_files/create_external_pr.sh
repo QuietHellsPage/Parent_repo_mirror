@@ -22,9 +22,13 @@ fi
 
 # Check PR and Update Branch
 if git show-ref --quiet refs/remotes/origin/$BRANCH_NAME; then
-    git checkout $BRANCH_NAME
-    git pull origin $BRANCH_NAME
+    # Переключаемся на main и удаляем локальную копию ветки
+    git checkout main
+    git branch -D $BRANCH_NAME 2>/dev/null || true
+    # Создаем новую ветку от актуального main
+    git checkout -b $BRANCH_NAME origin/main
 else
+    # Если ветки нет - создаем от текущего main
     git checkout -b $BRANCH_NAME
 fi
 
@@ -107,7 +111,9 @@ done
 
 if [ "$HAS_CHANGES" = true ]; then
     git commit -m "Sync changes from $REPO_NAME PR $PR_NUMBER"
-    git push origin $BRANCH_NAME
+    # Принудительный push чтобы гарантированно обновить ветку
+    git push -f origin $BRANCH_NAME
+    echo "Changes committed and pushed"
 else
     echo "No changes to commit"
     exit 0
