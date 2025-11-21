@@ -1,0 +1,40 @@
+name: "Sync on merge"
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  CreateExternalPR:
+    runs-on: ubuntu-latest
+    # Проверяем, что это мерж PR (сообщение коммита начинается с "Merge pull request")
+    if: |
+      startsWith(github.event.head_commit.message, 'Merge pull request')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Extract PR number from commit message
+        id: extract-pr
+        run: |
+          # Извлекаем номер PR из сообщения коммита мержа
+          PR_NUMBER=$(echo "${{ github.event.head_commit.message }}" | grep -o 'Merge pull request #' | sed 's/Merge pull request #//' | head -1)
+          if [ -z "$PR_NUMBER" ]; then
+            # Альтернативный способ извлечения
+            PR_NUMBER=$(echo "${{ github.event.head_commit.message }}" | grep -oP 'Merge pull request #\K\d+' | head -1)
+          fi
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "actor=${{ github.event.head_commit.author.name }}" >> $GITHUB_OUTPUT
+
+      - name: Setup GitHub CLI
+        run: |
+          bash external_pr_files/setup_cli.sh
+
+      - name: Sync repositories
+        run: |
+          bash external_pr_files/create_external_pr.sh "${{ github.event.repository.name }}" "${{ steps.extract-pr.outputs.pr_number }}"
+        env:
+          GH_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_ACTOR: ${{ steps.extract-pr.outputs.actor }}

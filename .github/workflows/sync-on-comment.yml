@@ -1,0 +1,38 @@
+name: "Sync on comment"
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  CreateExternalPR:
+    if: |
+      github.event.issue.pull_request != null && 
+      contains(github.event.comment.body, '[SYNC_TO_CHILD]') && 
+      github.event.issue.state == 'open'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get PR info
+        id: pr-info
+        run: |
+          echo "pr_number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+          echo "head_sha=${{ github.event.issue.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+          echo "actor=${{ github.event.comment.user.login }}" >> $GITHUB_OUTPUT
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr-info.outputs.head_sha }}
+
+      - name: Setup GitHub CLI
+        run: |
+          bash external_pr_files/setup_cli.sh
+
+      - name: Sync repositories
+        run: |
+          bash external_pr_files/create_external_pr.sh "${{ github.event.repository.name }}" "${{ steps.pr-info.outputs.pr_number }}"
+        env:
+          GH_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
+          GITHUB_SHA: ${{ steps.pr-info.outputs.head_sha }}
+          GITHUB_ACTOR: ${{ steps.pr-info.outputs.actor }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
