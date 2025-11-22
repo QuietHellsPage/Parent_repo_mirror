@@ -155,7 +155,7 @@ def get_top_n(frequencies: dict[str, int | float], top: int) -> list[str] | None
     for k, value in frequencies.items():
         if not isinstance(value, (int, float)) or not isinstance(k, str):
             return None
-    return [item[0] for item in sorted(frequencies.items(),
+    return [ite[0] for ite in sorted(frequencies.items(),
                    key=lambda item: item[1], reverse=True)[:top]]
 
 
