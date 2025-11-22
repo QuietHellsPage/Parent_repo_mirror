@@ -35,10 +35,11 @@ jobs:
             echo "PR Base Ref: $BASE_REF"
             echo "Head Repo: $HEAD_REPO_FULL_NAME"
             
+            # Исправление: для форков используем специальный формат ref
             if [ "$HEAD_REPO_FULL_NAME" = "${{ github.repository }}" ]; then
-              BRANCH_REF="refs/heads/$HEAD_REF"
+              BRANCH_REF="$HEAD_REF"  # Просто имя ветки для внутренних PR
             else
-              BRANCH_REF="pull/${{ github.event.issue.number }}/head"
+              BRANCH_REF="pull/${{ github.event.issue.number }}/head"  # Специальный ref для форков
             fi
             
             echo "pr_number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
@@ -49,6 +50,7 @@ jobs:
             echo "comment_body=${{ github.event.comment.body }}" >> $GITHUB_OUTPUT
             echo "ref_type=branch" >> $GITHUB_OUTPUT
             echo "is_fork=$([ "$HEAD_REPO_FULL_NAME" != "${{ github.repository }}" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+            echo "head_repo_full_name=$HEAD_REPO_FULL_NAME" >> $GITHUB_OUTPUT
             
           else
             echo "Processing push event"
@@ -64,9 +66,19 @@ jobs:
             echo "comment_body=" >> $GITHUB_OUTPUT
             echo "ref_type=sha" >> $GITHUB_OUTPUT
             echo "is_fork=false" >> $GITHUB_OUTPUT
+            echo "head_repo_full_name=${{ github.repository }}" >> $GITHUB_OUTPUT
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Debug extracted info
+        run: |
+          echo "Event: ${{ github.event_name }}"
+          echo "Branch ref: ${{ steps.extract-info.outputs.branch_ref }}"
+          echo "Head ref: ${{ steps.extract-info.outputs.head_ref }}"
+          echo "Head SHA: ${{ steps.extract-info.outputs.head_sha }}"
+          echo "Is fork: ${{ steps.extract-info.outputs.is_fork }}"
+          echo "Head repo: ${{ steps.extract-info.outputs.head_repo_full_name }}"
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -80,9 +92,10 @@ jobs:
 
       - name: Sync repositories
         run: |
-          bash external_pr_files/create_external_pr.sh "${{ github.repository.name }}" "${{ steps.extract-info.outputs.pr_number }}"
+          bash external_pr_files/create_external_pr.sh "${{ github.repository }}" "${{ steps.extract-info.outputs.pr_number }}"
         env:
           GH_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
           GITHUB_SHA: ${{ steps.extract-info.outputs.head_sha }}
           GITHUB_ACTOR: ${{ steps.extract-info.outputs.actor }}
           COMMENT_BODY: ${{ steps.extract-info.outputs.comment_body }}
+          SOURCE_BRANCH: ${{ steps.extract-info.outputs.head_ref }}
