@@ -46,5 +46,9 @@
   {
     "source": "lab_2_spellcheck/main.py",
     "target": "lab_2_spellcheck/main.py"
+  },
+  {
+    "source": "lab_3_generate_by_ngrams/README.rst",
+    "target": "newtest.rst"
   }
 ]
