@@ -21,10 +21,8 @@ jobs:
         id: extract-info
         run: |
           if [ "${{ github.event_name }}" = "issue_comment" ]; then
-            # Для комментария - получаем полную информацию о PR
             echo "Getting PR info for #${{ github.event.issue.number }}"
             
-            # Получаем информацию о PR
             PR_JSON=$(gh api /repos/${{ github.repository }}/pulls/${{ github.event.issue.number }})
             HEAD_REF=$(echo "$PR_JSON" | jq -r '.head.ref')
             HEAD_SHA=$(echo "$PR_JSON" | jq -r '.head.sha')
@@ -37,12 +35,9 @@ jobs:
             echo "PR Base Ref: $BASE_REF"
             echo "Head Repo: $HEAD_REPO_FULL_NAME"
             
-            # Формируем полную ссылку на ветку
             if [ "$HEAD_REPO_FULL_NAME" = "${{ github.repository }}" ]; then
-              # PR из того же репозитория
               BRANCH_REF="refs/heads/$HEAD_REF"
             else
-              # PR из форка
               BRANCH_REF="pull/${{ github.event.issue.number }}/head"
             fi
             
@@ -56,7 +51,6 @@ jobs:
             echo "is_fork=$([ "$HEAD_REPO_FULL_NAME" != "${{ github.repository }}" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
             
           else
-            # Для пуша
             echo "Processing push event"
             PR_NUMBER=$(echo "${{ github.event.head_commit.message }}" | grep -o 'Merge pull request #' | sed 's/Merge pull request #//' | head -1)
             if [ -z "$PR_NUMBER" ]; then
@@ -77,18 +71,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # Используем правильную ссылку на ветку
           ref: ${{ steps.extract-info.outputs.branch_ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Debug information
-        run: |
-          echo "Event: ${{ github.event_name }}"
-          echo "PR Number: ${{ steps.extract-info.outputs.pr_number }}"
-          echo "Head Ref: ${{ steps.extract-info.outputs.head_ref }}"
-          echo "Branch Ref: ${{ steps.extract-info.outputs.branch_ref }}"
-          echo "Head SHA: ${{ steps.extract-info.outputs.head_sha }}"
-          echo "Is Fork: ${{ steps.extract-info.outputs.is_fork }}"
 
       - name: Setup GitHub CLI
         run: |
