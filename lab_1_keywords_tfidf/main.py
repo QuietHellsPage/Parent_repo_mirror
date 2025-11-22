@@ -132,8 +132,8 @@ def calculate_frequencies(tokens: list[str]) -> dict[str, int] | None:
     if not check_list(tokens, str, True):
         return None
     freqs = {}
-    for token in tokens:
-        freqs[token] = freqs.get(token, 0) + 1
+    for toke in tokens:
+        freqs[toke] = freqs.get(toke, 0) + 1
     return freqs
 
 
