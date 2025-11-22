@@ -12,7 +12,7 @@ def main() -> None:
     In any case returns, None is returned
     """
     with open("./assets/Harry_Potter.txt", "r", encoding="utf-8") as text_file:
-        text = text_file.read()
+        t = text_file.read()
     result = None
     assert result
 
