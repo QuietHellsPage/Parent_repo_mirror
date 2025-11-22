@@ -9,7 +9,6 @@ on:
 jobs:
   CreateExternalPR:
     runs-on: ubuntu-latest
-    # Условия для разных триггеров
     if: |
       (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'Merge pull request')) ||
       (github.event_name == 'issue_comment' && 
@@ -22,7 +21,7 @@ jobs:
         id: extract-info
         run: |
           if [ "${{ github.event_name }}" = "issue_comment" ]; then
-            # Для комментария
+            # Для комментария - получаем информацию о ветке PR
             PR_JSON=$(gh api /repos/${{ github.repository }}/pulls/${{ github.event.issue.number }})
             HEAD_REF=$(echo "$PR_JSON" | jq -r '.head.ref')
             HEAD_SHA=$(echo "$PR_JSON" | jq -r '.head.sha')
@@ -50,7 +49,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.extract-info.outputs.head_ref || steps.extract-info.outputs.head_sha }}
+          # Используем ветку PR для комментария, коммит для пуша
+          ref: ${{ github.event_name == 'issue_comment' && steps.extract-info.outputs.head_ref || steps.extract-info.outputs.head_sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup GitHub CLI
