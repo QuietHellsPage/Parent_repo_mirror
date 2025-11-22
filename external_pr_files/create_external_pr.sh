@@ -22,20 +22,15 @@ fi
 
 # Check PR and Update Branch
 if git show-ref --quiet refs/remotes/origin/$BRANCH_NAME; then
-    echo "Branch $BRANCH_NAME exists, deleting and recreating..."
-    # Удаляем ветку и локально и удаленно
     git push origin --delete $BRANCH_NAME 2>/dev/null || true
     git branch -D $BRANCH_NAME 2>/dev/null || true
-    # Ждем немного чтобы Git обновил ссылки
     sleep 2
 fi
 
-# Создаем новую ветку от актуального main
 git checkout main
 git pull origin main
 git checkout -b $BRANCH_NAME
 
-# Получаем измененные файлы из PR
 CHANGED_FILES=$(gh pr view $PR_NUMBER --repo $GITHUB_REPOSITORY --json files --jq '.files[].path' 2>/dev/null || echo "")
 
 if [ -z "$CHANGED_FILES" ]; then
@@ -43,7 +38,6 @@ if [ -z "$CHANGED_FILES" ]; then
     exit 0
 fi
 
-# Проверяем наличие JSON файла в текущем состоянии репозитория
 JSON_EXISTS=false
 if [ -f "../autosync/test_files.json" ]; then
     JSON_EXISTS=true
@@ -59,7 +53,6 @@ fi
 HAS_CHANGES=false
 FILES_TO_SYNC_FOUND=false
 
-# Проверяем, есть ли файлы для синхронизации
 for file in $CHANGED_FILES; do
     if [ "$JSON_EXISTS" = true ]; then
         TARGETS=$(echo "$JSON_CONTENT" | jq -r --arg file "$file" '.[] | select(.source == $file) | .target' 2>/dev/null || echo "")
@@ -75,7 +68,6 @@ if [ "$FILES_TO_SYNC_FOUND" = false ]; then
     exit 0
 fi
 
-# Копируем файлы из родительского репозитория (уже checkout'нутого)
 for file in $CHANGED_FILES; do
     if [ "$JSON_EXISTS" = true ]; then
         TARGETS=$(echo "$JSON_CONTENT" | jq -r --arg file "$file" '.[] | select(.source == $file) | .target' 2>/dev/null || echo "")
@@ -84,7 +76,6 @@ for file in $CHANGED_FILES; do
             if [ -n "$TARGET_DIR" ]; then
                 TARGET_DIR_ONLY=$(dirname "$TARGET_DIR")
                 mkdir -p "$TARGET_DIR_ONLY"
-                # Копируем из родительского репозитория
                 if [ -f "../$file" ]; then
                     cp "../$file" "$TARGET_DIR"
                     git add "$TARGET_DIR"
@@ -95,7 +86,6 @@ for file in $CHANGED_FILES; do
     fi
 done
 
-# Обрабатываем удаленные файлы
 PR_DELETED_FILES=$(gh pr view $PR_NUMBER --repo $GITHUB_REPOSITORY --json files --jq '.files[] | select(.status == "removed") | .path' 2>/dev/null || echo "")
 
 for deleted_file in $PR_DELETED_FILES; do
@@ -114,7 +104,6 @@ done
 
 if [ "$HAS_CHANGES" = true ]; then
     git commit -m "Sync changes from $REPO_NAME PR $PR_NUMBER"
-    # Принудительный push чтобы гарантированно обновить ветку
     git push -f origin $BRANCH_NAME
     echo "Changes committed and pushed"
 else

@@ -18,10 +18,8 @@ jobs:
       - name: Extract PR number from commit message
         id: extract-pr
         run: |
-          # Извлекаем номер PR из сообщения коммита мержа
           PR_NUMBER=$(echo "${{ github.event.head_commit.message }}" | grep -o 'Merge pull request #' | sed 's/Merge pull request #//' | head -1)
           if [ -z "$PR_NUMBER" ]; then
-            # Альтернативный способ извлечения
             PR_NUMBER=$(echo "${{ github.event.head_commit.message }}" | grep -oP 'Merge pull request #\K\d+' | head -1)
           fi
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
