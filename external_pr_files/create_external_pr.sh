@@ -53,6 +53,7 @@ if [ -z "$CHANGED_FILES" ]; then
     exit 0
 fi
 
+# Проверяем существование test_files.json в исходной ветке
 JSON_EXISTS=false
 if git show $SOURCE_REF:autosync/test_files.json &>/dev/null; then
     JSON_EXISTS=true
@@ -62,13 +63,41 @@ if git show $SOURCE_REF:autosync/test_files.json &>/dev/null; then
         JSON_EXISTS=false
     fi
 else
+    # Если test_files.json не существует в родительском репозитории, выходим
     exit 0
 fi
 
+# Флаг для отслеживания изменений в test_files.json
+TEST_JSON_CHANGED=false
 HAS_CHANGES=false
 FILES_TO_SYNC_FOUND=false
 
+# Обрабатываем изменения в test_files.json первыми
+if echo "$CHANGED_FILES" | grep -q "autosync/test_files.json"; then
+    echo "test_files.json changed in PR, applying changes first"
+    if git show $SOURCE_REF:autosync/test_files.json > autosync/test_files.json 2>/dev/null; then
+        git add autosync/test_files.json
+        TEST_JSON_CHANGED=true
+        HAS_CHANGES=true
+        
+        # Обновляем JSON_CONTENT с новыми данными
+        JSON_CONTENT=$(cat autosync/test_files.json)
+        if ! echo "$JSON_CONTENT" | jq -e . >/dev/null 2>&1; then
+            echo "Updated test_files.json is invalid JSON"
+            exit 1
+        fi
+        JSON_EXISTS=true
+        echo "Successfully updated test_files.json with new mappings"
+    fi
+fi
+
+# Проверяем маппинг с обновленным test_files.json
 for file in $CHANGED_FILES; do
+    # Пропускаем test_files.json, так как мы его уже обработали
+    if [ "$file" = "autosync/test_files.json" ]; then
+        continue
+    fi
+    
     if [ "$JSON_EXISTS" = true ]; then
         TARGETS=$(echo "$JSON_CONTENT" | jq -r --arg file "$file" '.[] | select(.source == $file) | .target' 2>/dev/null || echo "")
         if [ -n "$TARGETS" ]; then
@@ -78,12 +107,19 @@ for file in $CHANGED_FILES; do
     fi
 done
 
-if [ "$FILES_TO_SYNC_FOUND" = false ]; then
+# Если не нашли файлов для синхронизации и не меняли test_files.json - выходим
+if [ "$FILES_TO_SYNC_FOUND" = false ] && [ "$TEST_JSON_CHANGED" = false ]; then
     echo "No files to sync found in PR $PR_NUMBER"
     exit 0
 fi
 
+# Обрабатываем добавленные/измененные файлы
 for file in $CHANGED_FILES; do
+    # Пропускаем test_files.json
+    if [ "$file" = "autosync/test_files.json" ]; then
+        continue
+    fi
+    
     if [ "$JSON_EXISTS" = true ]; then
         TARGETS=$(echo "$JSON_CONTENT" | jq -r --arg file "$file" '.[] | select(.source == $file) | .target' 2>/dev/null || echo "")
         
@@ -94,12 +130,16 @@ for file in $CHANGED_FILES; do
                 if git show $SOURCE_REF:"$file" > "$TARGET_DIR" 2>/dev/null; then
                     git add "$TARGET_DIR"
                     HAS_CHANGES=true
+                    echo "Synced file: $file -> $TARGET_DIR"
+                else
+                    echo "Warning: Could not read file $file from $SOURCE_REF"
                 fi
             fi
         done
     fi
 done
 
+# Обрабатываем удаленные файлы
 PR_DELETED_FILES=$(gh pr view $PR_NUMBER --repo $GITHUB_REPOSITORY --json files --jq '.files[] | select(.status == "removed") | .path' 2>/dev/null || echo "")
 
 for deleted_file in $PR_DELETED_FILES; do
@@ -110,14 +150,21 @@ for deleted_file in $PR_DELETED_FILES; do
             if [ -n "$TARGET_PATH" ] && [ -f "$TARGET_PATH" ]; then
                 git rm "$TARGET_PATH" 2>/dev/null || rm "$TARGET_PATH"
                 HAS_CHANGES=true
+                echo "Removed synced file: $TARGET_PATH (source: $deleted_file)"
             fi
         done
     fi
 done
 
 if [ "$HAS_CHANGES" = true ]; then
-    git commit -m "Sync changes from $REPO_NAME PR $PR_NUMBER"
+    # Если изменился только test_files.json, создаем специальный коммит
+    if [ "$TEST_JSON_CHANGED" = true ] && [ "$FILES_TO_SYNC_FOUND" = false ]; then
+        git commit -m "Update sync mapping from $REPO_NAME PR $PR_NUMBER"
+    else
+        git commit -m "Sync changes from $REPO_NAME PR $PR_NUMBER"
+    fi
     git push origin $BRANCH_NAME
+    echo "Successfully pushed changes to $BRANCH_NAME"
 else
     echo "No changes to commit"
     exit 0
@@ -136,8 +183,10 @@ if git log --oneline origin/main..$BRANCH_NAME | grep -q .; then
             --label "automated pr" \
             --assignee QuietHellsPage \
             --reviewer QuietHellsPage
+        echo "Created new PR in target repository"
     else
         gh pr comment $TARGET_PR_NUMBER --repo QuietHellsPage/$TARGET_REPO --body "Automatically updated"
+        echo "Updated existing PR #$TARGET_PR_NUMBER in target repository"
     fi
 else
     echo "No commits in branch $BRANCH_NAME - skipping PR creation"
