@@ -21,27 +21,55 @@ jobs:
         id: extract-info
         run: |
           if [ "${{ github.event_name }}" = "issue_comment" ]; then
-            # Для комментария - получаем информацию о ветке PR
+            # Для комментария - получаем полную информацию о PR
+            echo "Getting PR info for #${{ github.event.issue.number }}"
+            
+            # Получаем информацию о PR
             PR_JSON=$(gh api /repos/${{ github.repository }}/pulls/${{ github.event.issue.number }})
             HEAD_REF=$(echo "$PR_JSON" | jq -r '.head.ref')
             HEAD_SHA=$(echo "$PR_JSON" | jq -r '.head.sha')
+            BASE_REF=$(echo "$PR_JSON" | jq -r '.base.ref')
+            HEAD_REPO_FULL_NAME=$(echo "$PR_JSON" | jq -r '.head.repo.full_name')
+            HEAD_REPO_HTML_URL=$(echo "$PR_JSON" | jq -r '.head.repo.html_url')
+            
+            echo "PR Head Ref: $HEAD_REF"
+            echo "PR Head SHA: $HEAD_SHA"
+            echo "PR Base Ref: $BASE_REF"
+            echo "Head Repo: $HEAD_REPO_FULL_NAME"
+            
+            # Формируем полную ссылку на ветку
+            if [ "$HEAD_REPO_FULL_NAME" = "${{ github.repository }}" ]; then
+              # PR из того же репозитория
+              BRANCH_REF="refs/heads/$HEAD_REF"
+            else
+              # PR из форка
+              BRANCH_REF="pull/${{ github.event.issue.number }}/head"
+            fi
+            
             echo "pr_number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
             echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
             echo "head_sha=$HEAD_SHA" >> $GITHUB_OUTPUT
+            echo "branch_ref=$BRANCH_REF" >> $GITHUB_OUTPUT
             echo "actor=${{ github.event.comment.user.login }}" >> $GITHUB_OUTPUT
             echo "comment_body=${{ github.event.comment.body }}" >> $GITHUB_OUTPUT
             echo "ref_type=branch" >> $GITHUB_OUTPUT
+            echo "is_fork=$([ "$HEAD_REPO_FULL_NAME" != "${{ github.repository }}" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+            
           else
             # Для пуша
+            echo "Processing push event"
             PR_NUMBER=$(echo "${{ github.event.head_commit.message }}" | grep -o 'Merge pull request #' | sed 's/Merge pull request #//' | head -1)
             if [ -z "$PR_NUMBER" ]; then
               PR_NUMBER=$(echo "${{ github.event.head_commit.message }}" | grep -oP 'Merge pull request #\K\d+' | head -1)
             fi
             echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
             echo "head_sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "head_ref=${{ github.ref }}" >> $GITHUB_OUTPUT
+            echo "branch_ref=${{ github.ref }}" >> $GITHUB_OUTPUT
             echo "actor=${{ github.event.head_commit.author.name }}" >> $GITHUB_OUTPUT
             echo "comment_body=" >> $GITHUB_OUTPUT
             echo "ref_type=sha" >> $GITHUB_OUTPUT
+            echo "is_fork=false" >> $GITHUB_OUTPUT
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -49,9 +77,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # Используем ветку PR для комментария, коммит для пуша
-          ref: ${{ github.event_name == 'issue_comment' && steps.extract-info.outputs.head_ref || steps.extract-info.outputs.head_sha }}
+          # Используем правильную ссылку на ветку
+          ref: ${{ steps.extract-info.outputs.branch_ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Debug information
+        run: |
+          echo "Event: ${{ github.event_name }}"
+          echo "PR Number: ${{ steps.extract-info.outputs.pr_number }}"
+          echo "Head Ref: ${{ steps.extract-info.outputs.head_ref }}"
+          echo "Branch Ref: ${{ steps.extract-info.outputs.branch_ref }}"
+          echo "Head SHA: ${{ steps.extract-info.outputs.head_sha }}"
+          echo "Is Fork: ${{ steps.extract-info.outputs.is_fork }}"
 
       - name: Setup GitHub CLI
         run: |
@@ -59,7 +96,7 @@ jobs:
 
       - name: Sync repositories
         run: |
-          bash external_pr_files/create_external_pr.sh "${{ github.event.repository.name }}" "${{ steps.extract-info.outputs.pr_number }}"
+          bash external_pr_files/create_external_pr.sh "${{ github.repository.name }}" "${{ steps.extract-info.outputs.pr_number }}"
         env:
           GH_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
           GITHUB_SHA: ${{ steps.extract-info.outputs.head_sha }}
