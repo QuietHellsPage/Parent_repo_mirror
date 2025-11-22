@@ -1,0 +1,67 @@
+name: "Sync to child repository"
+
+on:
+  push:
+    branches: [main]
+  issue_comment:
+    types: [created]
+
+jobs:
+  CreateExternalPR:
+    runs-on: ubuntu-latest
+    # Условия для разных триггеров
+    if: |
+      (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'Merge pull request')) ||
+      (github.event_name == 'issue_comment' && 
+       github.event.issue.pull_request != null && 
+       contains(github.event.comment.body, '[SYNC_TO_CHILD]') && 
+       github.event.issue.state == 'open')
+    
+    steps:
+      - name: Extract PR information
+        id: extract-info
+        run: |
+          if [ "${{ github.event_name }}" = "issue_comment" ]; then
+            # Для комментария
+            PR_JSON=$(gh api /repos/${{ github.repository }}/pulls/${{ github.event.issue.number }})
+            HEAD_REF=$(echo "$PR_JSON" | jq -r '.head.ref')
+            HEAD_SHA=$(echo "$PR_JSON" | jq -r '.head.sha')
+            echo "pr_number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+            echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
+            echo "head_sha=$HEAD_SHA" >> $GITHUB_OUTPUT
+            echo "actor=${{ github.event.comment.user.login }}" >> $GITHUB_OUTPUT
+            echo "comment_body=${{ github.event.comment.body }}" >> $GITHUB_OUTPUT
+            echo "ref_type=branch" >> $GITHUB_OUTPUT
+          else
+            # Для пуша
+            PR_NUMBER=$(echo "${{ github.event.head_commit.message }}" | grep -o 'Merge pull request #' | sed 's/Merge pull request #//' | head -1)
+            if [ -z "$PR_NUMBER" ]; then
+              PR_NUMBER=$(echo "${{ github.event.head_commit.message }}" | grep -oP 'Merge pull request #\K\d+' | head -1)
+            fi
+            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+            echo "head_sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "actor=${{ github.event.head_commit.author.name }}" >> $GITHUB_OUTPUT
+            echo "comment_body=" >> $GITHUB_OUTPUT
+            echo "ref_type=sha" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.extract-info.outputs.head_ref || steps.extract-info.outputs.head_sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup GitHub CLI
+        run: |
+          bash external_pr_files/setup_cli.sh
+
+      - name: Sync repositories
+        run: |
+          bash external_pr_files/create_external_pr.sh "${{ github.event.repository.name }}" "${{ steps.extract-info.outputs.pr_number }}"
+        env:
+          GH_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
+          GITHUB_SHA: ${{ steps.extract-info.outputs.head_sha }}
+          GITHUB_ACTOR: ${{ steps.extract-info.outputs.actor }}
+          COMMENT_BODY: ${{ steps.extract-info.outputs.comment_body }}

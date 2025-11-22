@@ -15,7 +15,7 @@ cd $TARGET_REPO
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-# Create Label
+# Create Label (если не существует)
 if ! gh label list --repo QuietHellsPage/$TARGET_REPO --json name -q '.[] | select(.name == "automated pr")' | grep -q "automated pr"; then
     gh label create "automated pr" --color "0E8A16" --description "Automated pull request" --repo QuietHellsPage/$TARGET_REPO
 fi
@@ -100,7 +100,6 @@ for deleted_file in $PR_DELETED_FILES; do
         done
     fi
 done
-
 
 if [ "$HAS_CHANGES" = true ]; then
     git commit -m "Sync changes from $REPO_NAME PR $PR_NUMBER"
