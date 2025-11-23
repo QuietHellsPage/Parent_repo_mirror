@@ -53,7 +53,7 @@ def main():
 
     labels = get_gh_json(f"gh label list --repo QuietHellsPage/{TARGET_REPO} --json name")
     label_exists = False
-    if labels and isinstance(labels(list)):
+    if labels and isinstance(labels, list):
         label_exists = any(isinstance(label, dict) and label.get('name') == 'automated pr' for label in labels)
     
     if not label_exists:
