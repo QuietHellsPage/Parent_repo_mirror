@@ -80,7 +80,18 @@ def main():
     run_command("git fetch parent-repo")
 
     pr_files_data = get_gh_json(f"gh pr view {PR_NUMBER} --repo {GITHUB_REPOSITORY} --json files")
-    CHANGED_FILES = [file['path'] for file in (pr_files_data or [])] if pr_files_data else []
+    CHANGED_FILES = []
+    
+    if pr_files_data:
+        if isinstance(pr_files_data, list):
+            CHANGED_FILES = [file['path'] for file in pr_files_data if isinstance(file, dict) and 'path' in file]
+        elif isinstance(pr_files_data, dict) and 'files' in pr_files_data:
+            files_list = pr_files_data['files']
+            if isinstance(files_list, list):
+                CHANGED_FILES = [file['path'] for file in files_list if isinstance(file, dict) and 'path' in file]
+        elif isinstance(pr_files_data, str):
+            print(f"Warning: pr_files_data is string: {pr_files_data}")
+            CHANGED_FILES = []
 
     if not CHANGED_FILES:
         print(f"No changed files found in PR {PR_NUMBER}")
