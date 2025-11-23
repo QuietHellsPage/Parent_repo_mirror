@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 import sys
 import os
+import shlex
 
 def run_command(cmd, check=True, capture_output=False):
     """
@@ -20,13 +21,12 @@ def get_gh_json(cmd):
     """
     Run gh command and return json output
     """
-    result = subprocess.run(cmd, check=False, capture_output=True)
+    if isinstance(cmd, str):
+        cmd = shlex.split(cmd)
+    result = subprocess.run(cmd, check=False, capture_output=True, text=True)
     if result.returncode != 0:
         return None
-    try:
-        return json.loads(result.stdout)
-    except json.JSONDecodeError:
-        return f"Command failed:{cmd}"
+    return json.loads(result.stdout)
 
 def main():
     if len(sys.argv) < 3:
