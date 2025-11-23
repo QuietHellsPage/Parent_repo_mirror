@@ -38,9 +38,9 @@ def main():
     TARGET_REPO = "Child_repo_mirror"
     BRANCH_NAME = f"auto-update-from-{REPO_NAME}-pr-{PR_NUMBER}"
 
-    GH_TOKEN = subprocess.getenv('GH_TOKEN')
-    GITHUB_REPOSITORY = subprocess.getenv('GITHUB_REPOSITORY')
-    COMMENT_BODY = subprocess.getenv('COMMENT_BODY', '')
+    GH_TOKEN = os.getenv("GH_TOKEN")
+    GITHUB_REPOSITORY = os.getenv('GITHUB_REPOSITORY')
+    COMMENT_BODY = os.getenv('COMMENT_BODY', '')
 
     run_command(f"rm -rf {TARGET_REPO}")
     run_command(f"git clone https://{GH_TOKEN}@github.com/QuietHellsPage/{TARGET_REPO}.git")
