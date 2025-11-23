@@ -52,7 +52,9 @@ def main():
     run_command('git config user.email "41898282+github-actions[bot]@users.noreply.github.com"')
 
     labels = get_gh_json(f"gh label list --repo QuietHellsPage/{TARGET_REPO} --json name")
-    label_exists = any(label.get('name') == 'automated pr' for label in labels or [])
+    label_exists = False
+    if labels and isinstance(labels(list)):
+        label_exists = any(isinstance(label, dict) and label.get('name') == 'automated pr' for label in labels)
     
     if not label_exists:
         run_command(f'gh label create "automated pr" --color "0E8A16" --description "Automated pull request" --repo QuietHellsPage/{TARGET_REPO}')
@@ -67,7 +69,7 @@ def main():
 
     if COMMENT_BODY and COMMENT_BODY != "":
         pr_info = get_gh_json(f"gh pr view {PR_NUMBER} --repo {GITHUB_REPOSITORY} --json headRefName")
-        PR_BRANCH = pr_info.get('headRefName') if pr_info else ""
+        PR_BRANCH = pr_info.get('headRefName', '') if pr_info and isinstance(pr_info, dict) else ""
         SOURCE_REF = f"parent-repo/{PR_BRANCH}" if PR_BRANCH else ""
     else:
         PR_BRANCH = "main"
@@ -81,7 +83,7 @@ def main():
 
     pr_files_data = get_gh_json(f"gh pr view {PR_NUMBER} --repo {GITHUB_REPOSITORY} --json files")
     CHANGED_FILES = []
-    
+
     if pr_files_data:
         if isinstance(pr_files_data, list):
             CHANGED_FILES = [file['path'] for file in pr_files_data if isinstance(file, dict) and 'path' in file]
@@ -215,7 +217,11 @@ def main():
         sys.exit(0)
 
     pr_list = get_gh_json(f"gh pr list --repo QuietHellsPage/{TARGET_REPO} --head {BRANCH_NAME} --json number")
-    TARGET_PR_NUMBER = pr_list[0]['number'] if pr_list and len(pr_list) > 0 else None
+    TARGET_PR_NUMBER = None
+    if pr_list and isinstance(pr_list, list) and len(pr_list) > 0:
+        first_pr = pr_list[0]
+        if isinstance(first_pr, dict) and 'number' in first_pr:
+            TARGET_PR_NUMBER = first_pr['number']
 
     commit_check = run_command(f"git log --oneline origin/main..{BRANCH_NAME}", capture_output=True)
     if commit_check.stdout.strip():
