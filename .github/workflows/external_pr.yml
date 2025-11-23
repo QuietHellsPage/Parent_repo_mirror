@@ -42,7 +42,7 @@ jobs:
 
       - name: Sync repositories
         run: |
-          bash external_pr_files/create_external_pr.sh "${{ github.event.repository.name }}" "${{ steps.trigger-info.outputs.pr_number }}"
+          python external_pr_files/external_pr.py "${{ github.event.repository.name }}" "${{ steps.trigger-info.outputs.pr_number }}"
         env:
           GH_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
           GITHUB_SHA: ${{ steps.trigger-info.outputs.head_sha }}
