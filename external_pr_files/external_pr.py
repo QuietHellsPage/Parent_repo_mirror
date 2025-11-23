@@ -26,7 +26,37 @@ def get_gh_json(cmd):
     result = subprocess.run(cmd, check=False, capture_output=True, text=True)
     if result.returncode != 0:
         return None
-    return json.loads(result.stdout)
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError:
+        print(f"Failed to parse JSON from command: {cmd}")
+        return None
+
+def get_pr_files_data(pr_files_data):
+    """
+    Extract file information from pr_files_data in a consistent format
+    """
+    files_list = []
+    
+    if not pr_files_data:
+        return files_list
+        
+    if isinstance(pr_files_data, list):
+        files_list = pr_files_data
+    elif isinstance(pr_files_data, dict) and 'files' in pr_files_data:
+        files_list = pr_files_data['files']
+    elif isinstance(pr_files_data, str):
+        print(f"Warning: pr_files_data is string: {pr_files_data}")
+        return files_list
+    
+    valid_files = []
+    for file_info in files_list:
+        if isinstance(file_info, dict) and 'path' in file_info:
+            valid_files.append(file_info)
+        else:
+            print(f"Warning: Invalid file info format: {file_info}")
+    
+    return valid_files
 
 def main():
     if len(sys.argv) < 3:
@@ -82,18 +112,8 @@ def main():
     run_command("git fetch parent-repo")
 
     pr_files_data = get_gh_json(f"gh pr view {PR_NUMBER} --repo {GITHUB_REPOSITORY} --json files")
-    CHANGED_FILES = []
-
-    if pr_files_data:
-        if isinstance(pr_files_data, list):
-            CHANGED_FILES = [file['path'] for file in pr_files_data if isinstance(file, dict) and 'path' in file]
-        elif isinstance(pr_files_data, dict) and 'files' in pr_files_data:
-            files_list = pr_files_data['files']
-            if isinstance(files_list, list):
-                CHANGED_FILES = [file['path'] for file in files_list if isinstance(file, dict) and 'path' in file]
-        elif isinstance(pr_files_data, str):
-            print(f"Warning: pr_files_data is string: {pr_files_data}")
-            CHANGED_FILES = []
+    files_data = get_pr_files_data(pr_files_data)
+    CHANGED_FILES = [file['path'] for file in files_data]
 
     if not CHANGED_FILES:
         print(f"No changed files found in PR {PR_NUMBER}")
@@ -183,10 +203,9 @@ def main():
                         print(f"Warning: Could not read file {file} from {SOURCE_REF}")
 
     deleted_files = []
-    if pr_files_data:
-        for file_info in pr_files_data:
-            if file_info.get('status') == 'removed':
-                deleted_files.append(file_info['path'])
+    for file_info in files_data:
+        if file_info.get('status') == 'removed':
+            deleted_files.append(file_info['path'])
 
     for deleted_file in deleted_files:
         if JSON_EXISTS:
