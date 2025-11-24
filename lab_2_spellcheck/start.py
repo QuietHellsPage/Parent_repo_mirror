@@ -10,7 +10,7 @@ def main() -> None:
     Launches an implementation.
     """
     with open("assets/Master_and_Margarita_chapter1.txt", "r", encoding="utf-8") as file:
-        text = file.read()
+        te = file.read()
     with open("assets/stop_words.txt", "r", encoding="utf-8") as file:
         s = file.read().split("\n")
     with (
