@@ -1,21 +1,35 @@
 #!/usr/bin/env python3
-import json
 import subprocess
+import os
+import json
 from pathlib import Path
 import sys
-import os
 import shlex
+
+
+class GHCommandException(Exception):
+    """
+    Raised when running GH command fails
+    """
+
 
 def run_command(cmd, check=True, capture_output=False):
     """
     Run command and return result
     """
-    result = subprocess.run(cmd, shell=True, capture_output=capture_output, text=True)
-    if check and result.returncode != 0:
-        print(f"Command failed: {cmd}")
-        sys.exit(1)
+    try:
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=capture_output,
+            text=True,
+            check=check)
+        return result
+    
+    except subprocess.CalledProcessError as e:
+        print(f"Command {cmd} failed with exit code {e.returncode}")
+        sys.exit(e.returncode)
 
-    return result
 
 def get_gh_json(cmd):
     """
@@ -23,44 +37,53 @@ def get_gh_json(cmd):
     """
     if isinstance(cmd, str):
         cmd = shlex.split(cmd)
+    
     result = subprocess.run(cmd, check=False, capture_output=True, text=True)
-    if result.returncode != 0:
-        return None
+
+    if (exitcode := result.returncode) != 0:
+        raise GHCommandException(f"Running GH command failed with exit code {exitcode}")
+    
     try:
         return json.loads(result.stdout)
-    except json.JSONDecodeError:
-        print(f"Failed to parse JSON from command: {cmd}")
+    
+    except json.JSONDecodeError as e:
+        print(f"Failed to parse JSON from command: {cmd} due to error {e}")
         return None
+
 
 def get_pr_files_data(pr_files_data):
     """
     Extract file information from pr_files_data in a consistent format
     """
     files_list = []
-    
+
     if not pr_files_data:
         return files_list
-        
+    
     if isinstance(pr_files_data, list):
         files_list = pr_files_data
-    elif isinstance(pr_files_data, dict) and 'files' in pr_files_data:
-        files_list = pr_files_data['files']
+
+    elif isinstance(pr_files_data, dict) and "files" in pr_files_data:
+        files_list = pr_files_data["files"]
+
     elif isinstance(pr_files_data, str):
-        print(f"Warning: pr_files_data is string: {pr_files_data}")
+        print("Warning: PR files data is an invalid string format")
         return files_list
     
     valid_files = []
+
     for file_info in files_list:
-        if isinstance(file_info, dict) and 'path' in file_info:
+        if isinstance(file_info, dict) and "path" in file_info:
             valid_files.append(file_info)
         else:
-            print(f"Warning: Invalid file info format: {file_info}")
+            print(f"Invalid file info format here: {file_info}")
     
     return valid_files
 
+
 def main():
-    if len(sys.argv) < 3:
-        print("Usage: python script.py <REPO_NAME> <PR_NUMBER>")
+    if (sys_len := len(sys.argv)) < 3:
+        print(f"Lenght of command line args is {sys_len}, what is less than 3")
         sys.exit(1)
     
     REPO_NAME = sys.argv[1]
@@ -95,7 +118,7 @@ def main():
         run_command(f"git pull origin {BRANCH_NAME}")
     else:
         run_command(f"git checkout -b {BRANCH_NAME}")
-    
+
 
     if COMMENT_BODY and COMMENT_BODY != "":
         pr_info = get_gh_json(f"gh pr view {PR_NUMBER} --repo {GITHUB_REPOSITORY} --json headRefName")
@@ -137,7 +160,7 @@ def main():
     FILES_TO_SYNC_FOUND = False
 
     if "autosync/test_files.json" in CHANGED_FILES:
-        print("test_files.json changed in PR, applying changes first")
+        print("tracked_files.json changed in PR, applying changes first")
         json_content_cmd = run_command(f"git show {SOURCE_REF}:autosync/test_files.json", capture_output=True)
         if json_content_cmd.returncode == 0:
             test_files_path = Path("autosync/test_files.json")
@@ -151,9 +174,9 @@ def main():
             try:
                 JSON_CONTENT = json.loads(json_content_cmd.stdout)
                 JSON_EXISTS = True
-                print("Successfully updated test_files.json with new mappings")
+                print("Successfully updated tracked_files.json with new mappings")
             except json.JSONDecodeError:
-                print("Updated test_files.json is invalid JSON")
+                print("Updated tracked_files.json is invalid JSON")
                 sys.exit(1)
 
     for file in CHANGED_FILES:
@@ -262,5 +285,5 @@ def main():
         print(f"No commits in branch {BRANCH_NAME} - skipping PR creation")
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
