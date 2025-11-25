@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
-import subprocess
-import os
+
+"""
+Wrapper for the bash script to generate external PR
+"""
+
 import json
-from pathlib import Path
-import sys
+import os
 import shlex
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 
 class GHCommandException(Exception):
@@ -13,45 +20,59 @@ class GHCommandException(Exception):
     """
 
 
-def run_command(cmd, check=True, capture_output=False):
+@dataclass
+class CommitContextStorage:
+    """
+    Storage for commit information
+    """
+    repo_name: str
+    pr_number: str
+    branch_name: str
+    test_json_changed: bool
+    files_to_sync_found: bool
+    has_changes: bool
+
+
+def run_command(
+    cmd: str, check: bool = True, capture_output: bool = False
+) -> Optional[subprocess.CompletedProcess]:
     """
     Run command and return result
     """
     try:
         result = subprocess.run(
-            cmd,
-            shell=True,
-            capture_output=capture_output,
-            text=True,
-            check=check)
+            cmd, shell=True, capture_output=capture_output, text=True, check=check
+        )
         return result
-    
+
     except subprocess.CalledProcessError as e:
         print(f"Command {cmd} failed with exit code {e.returncode}")
         sys.exit(e.returncode)
 
 
-def get_gh_json(cmd):
+def get_gh_json(cmd: Union[str, List[str]]) -> Optional[Any]:
     """
     Run gh command and return json output
     """
     if isinstance(cmd, str):
         cmd = shlex.split(cmd)
-    
+
     result = subprocess.run(cmd, check=False, capture_output=True, text=True)
 
     if (exitcode := result.returncode) != 0:
         raise GHCommandException(f"Running GH command failed with exit code {exitcode}")
-    
+
     try:
         return json.loads(result.stdout)
-    
+
     except json.JSONDecodeError as e:
         print(f"Failed to parse JSON from command: {cmd} due to error {e}")
         return None
 
 
-def get_pr_files_data(pr_files_data):
+def get_pr_files_data(
+    pr_files_data: Union[List[Dict[str, Any]], Dict[str, Any], str, None],
+) -> List[Dict[str, Any]]:
     """
     Extract file information from pr_files_data in a consistent format
     """
@@ -59,7 +80,7 @@ def get_pr_files_data(pr_files_data):
 
     if not pr_files_data:
         return files_list
-    
+
     if isinstance(pr_files_data, list):
         files_list = pr_files_data
 
@@ -69,7 +90,7 @@ def get_pr_files_data(pr_files_data):
     elif isinstance(pr_files_data, str):
         print("Warning: PR files data is an invalid string format")
         return files_list
-    
+
     valid_files = []
 
     for file_info in files_list:
@@ -77,213 +98,327 @@ def get_pr_files_data(pr_files_data):
             valid_files.append(file_info)
         else:
             print(f"Invalid file info format here: {file_info}")
-    
+
     return valid_files
 
 
-def main():
-    if (sys_len := len(sys.argv)) < 3:
-        print(f"Lenght of command line args is {sys_len}, what is less than 3")
-        sys.exit(1)
-    
-    REPO_NAME = sys.argv[1]
-    PR_NUMBER = sys.argv[2]
-    TARGET_REPO = "Child_repo_mirror"
-    BRANCH_NAME = f"auto-update-from-{REPO_NAME}-pr-{PR_NUMBER}"
+def setup_and_authorize(target_repo: str, gh_token: str) -> None:
+    """
+    Clone repo and authorize as bot
+    """
+    run_command(f"rm -rf {target_repo}")
+    run_command(f"git clone https://{gh_token}@github.com/QuietHellsPage/{target_repo}.git")
 
-    GH_TOKEN = os.getenv("GH_TOKEN")
-    GITHUB_REPOSITORY = os.getenv('GITHUB_REPOSITORY')
-    COMMENT_BODY = os.getenv('COMMENT_BODY', '')
-
-    run_command(f"rm -rf {TARGET_REPO}")
-    run_command(f"git clone https://{GH_TOKEN}@github.com/QuietHellsPage/{TARGET_REPO}.git")
-
-    target_path = Path(TARGET_REPO)
+    target_path = Path(target_repo)
     os.chdir(target_path)
 
     run_command('git config user.name "github-actions[bot]"')
     run_command('git config user.email "41898282+github-actions[bot]@users.noreply.github.com"')
 
-    labels = get_gh_json(f"gh label list --repo QuietHellsPage/{TARGET_REPO} --json name")
+
+def use_or_create_label(target_repo: str) -> None:
+    """
+    Ensure needed label exists or create it
+    """
+    labels = get_gh_json(f"gh label list --repo QuietHellsPage/{target_repo} --json name")
+
     label_exists = False
+
     if labels and isinstance(labels, list):
-        label_exists = any(isinstance(label, dict) and label.get('name') == 'automated pr' for label in labels)
-    
+        label_exists = any(
+            isinstance(label, dict) and label.get("name") == "automated pr" for label in labels
+        )
+
     if not label_exists:
-        run_command(f'gh label create "automated pr" --color "0E8A16" --description "Automated pull request" --repo QuietHellsPage/{TARGET_REPO}')
+        run_command(
+            f'gh label create "automated pr" '
+            f'--color "0E8A16" '
+            f'--description "Automated pull request" '
+            f"--repo QuietHellsPage/{target_repo}"
+        )
 
-    branch_check = run_command(f"git show-ref --quiet refs/remotes/origin/{BRANCH_NAME}", check=False)
+
+def setup_branch(branch_name: str) -> None:
+    """
+    Create new branch or checkout on it
+    """
+    branch_check = run_command(
+        f"git show-ref --quiet refs/remotes/origin/{branch_name}", check=False
+    )
     if branch_check.returncode == 0:
-        run_command(f"git checkout {BRANCH_NAME}")
-        run_command(f"git pull origin {BRANCH_NAME}")
+        run_command(f"git checkout {branch_name}")
+        run_command(f"git pull origin {branch_name}")
     else:
-        run_command(f"git checkout -b {BRANCH_NAME}")
+        run_command(f"git checkout -b {branch_name}")
 
 
-    if COMMENT_BODY and COMMENT_BODY != "":
-        pr_info = get_gh_json(f"gh pr view {PR_NUMBER} --repo {GITHUB_REPOSITORY} --json headRefName")
-        PR_BRANCH = pr_info.get('headRefName', '') if pr_info and isinstance(pr_info, dict) else ""
-        SOURCE_REF = f"parent-repo/{PR_BRANCH}" if PR_BRANCH else ""
+def get_source_ref(github_repository: str, pr_number: str, comment_body: str) -> str:
+    """
+    Define source ref for sync
+    """
+    if comment_body and comment_body != "":
+        pr_info = get_gh_json(
+            f"gh pr view {pr_number} --repo {github_repository} --json headRefName"
+        )
+        pr_branch = pr_info.get("headRefName", "") if pr_info and isinstance(pr_info, dict) else ""
+        source_ref = f"parent-repo/{pr_branch}" if pr_branch else ""
     else:
-        PR_BRANCH = "main"
-        SOURCE_REF = "parent-repo/main"
+        pr_branch = "main"
+        source_ref = "parent-repo/main"
 
-    if not PR_BRANCH:
-        sys.exit(0)
+    return source_ref
 
-    run_command("git remote add parent-repo https://github.com/$GITHUB_REPOSITORY.git")
-    run_command("git fetch parent-repo")
 
-    pr_files_data = get_gh_json(f"gh pr view {PR_NUMBER} --repo {GITHUB_REPOSITORY} --json files")
-    files_data = get_pr_files_data(pr_files_data)
-    CHANGED_FILES = [file['path'] for file in files_data]
+def handle_update(source_ref: str, changed_files: List[Any]) -> tuple[bool, bool, Any]:
+    """
+    Process if tracked_files.json is updated in PR
+    """
+    test_json_changed = False
+    json_exists = False
+    json_content = None
 
-    if not CHANGED_FILES:
-        print(f"No changed files found in PR {PR_NUMBER}")
-        sys.exit(0)
-    
-    JSON_EXISTS = False
-    JSON_CONTENT = None
-    
-    json_check = run_command(f"git show {SOURCE_REF}:autosync/test_files.json", check=False, capture_output=True)
-    if json_check.returncode == 0:
-        try:
-            JSON_CONTENT = json.loads(json_check.stdout)
-            JSON_EXISTS = True
-        except json.JSONDecodeError:
-            JSON_EXISTS = False
-    else:
-        sys.exit(0)
-
-    TEST_JSON_CHANGED = False
-    HAS_CHANGES = False
-    FILES_TO_SYNC_FOUND = False
-
-    if "autosync/test_files.json" in CHANGED_FILES:
+    if "autosync/test_files.json" in changed_files:
         print("tracked_files.json changed in PR, applying changes first")
-        json_content_cmd = run_command(f"git show {SOURCE_REF}:autosync/test_files.json", capture_output=True)
+        json_content_cmd = run_command(
+            f"git show {source_ref}:autosync/test_files.json",
+            capture_output=True,
+        )
         if json_content_cmd.returncode == 0:
             test_files_path = Path("autosync/test_files.json")
             test_files_path.parent.mkdir(parents=True, exist_ok=True)
-            test_files_path.write_text(json_content_cmd.stdout)
-            
+            test_files_path.write_text(json_content_cmd.stdout, encoding="utf-8")
+
             run_command("git add autosync/test_files.json")
-            TEST_JSON_CHANGED = True
-            HAS_CHANGES = True
-            
+            test_json_changed = True
+
             try:
-                JSON_CONTENT = json.loads(json_content_cmd.stdout)
-                JSON_EXISTS = True
+                json_content = json.loads(json_content_cmd.stdout)
+                json_exists = True
                 print("Successfully updated tracked_files.json with new mappings")
             except json.JSONDecodeError:
                 print("Updated tracked_files.json is invalid JSON")
                 sys.exit(1)
 
-    for file in CHANGED_FILES:
+    return test_json_changed, json_exists, json_content
+
+
+def has_files_for_sync(changed_files: List[str], json_content: Any) -> bool:
+    """
+    Check if files for synchronization exist
+    """
+    if not json_content:
+        return False
+
+    for file in changed_files:
         if file == "autosync/test_files.json":
             continue
-            
-        if JSON_EXISTS:
-            targets = []
-            for mapping in JSON_CONTENT:
-                if mapping.get('source') == file:
-                    target = mapping.get('target')
-                    if target:
-                        targets.append(target)
-            
-            if targets:
-                FILES_TO_SYNC_FOUND = True
-                break
 
-    if not FILES_TO_SYNC_FOUND and not TEST_JSON_CHANGED:
-        print(f"No files to sync found in PR {PR_NUMBER}")
-        sys.exit(0)
+        for mapping in json_content:
+            if mapping.get("source") == file:
+                target = mapping.get("target")
+                if target:
+                    return True
+    return False
 
-    for file in CHANGED_FILES:
+
+def sync_modified_files(changed_files: List[str], json_content: Any, source_ref: str) -> bool:
+    """
+    Synchronize modified files
+    """
+    has_changes = False
+
+    for file in changed_files:
         if file == "autosync/test_files.json":
             continue
-            
-        if JSON_EXISTS:
+        if json_content:
             targets = []
-            for mapping in JSON_CONTENT:
-                if mapping.get('source') == file:
-                    target = mapping.get('target')
+            for mapping in json_content:
+                if mapping.get("source") == file:
+                    target = mapping.get("target")
                     if target:
                         targets.append(target)
-            
+
             for target_dir in targets:
                 if target_dir:
                     target_path = Path(target_dir)
                     target_path.parent.mkdir(parents=True, exist_ok=True)
-                    
-                    file_content_cmd = run_command(f'git show {SOURCE_REF}:"{file}"', check=False, capture_output=True)
+
+                    file_content_cmd = run_command(
+                        f'git show {source_ref}:"{file}"', check=False, capture_output=True
+                    )
+
                     if file_content_cmd.returncode == 0:
-                        target_path.write_text(file_content_cmd.stdout)
+                        target_path.write_text(file_content_cmd.stdout, encoding="utf-8")
                         run_command(f'git add "{target_dir}"')
-                        HAS_CHANGES = True
+                        has_changes = True
                         print(f"Synced file: {file} -> {target_dir}")
                     else:
-                        print(f"Warning: Could not read file {file} from {SOURCE_REF}")
+                        print(f"Warning: Could not read file {file} from {source_ref}")
 
+    return has_changes
+
+
+def handle_deleted_files(files_data: List[Dict[str, Any]], json_content: Any) -> bool:
+    """
+    Handle deleted files if they are tracked
+    """
+    has_changes = False
     deleted_files = []
+
     for file_info in files_data:
-        if file_info.get('status') == 'removed':
-            deleted_files.append(file_info['path'])
+        if file_info.get("status") == "removed":
+            deleted_files.append(file_info.get("path"))
 
     for deleted_file in deleted_files:
-        if JSON_EXISTS:
+        if json_content:
             targets = []
-            for mapping in JSON_CONTENT:
-                if mapping.get('source') == deleted_file:
-                    target = mapping.get('target')
+            for mapping in json_content:
+                if mapping.get("source") == deleted_file:
+                    target = mapping.get("target")
                     if target:
                         targets.append(target)
-            
-            for target_path in targets:
-                if target_path and Path(target_path).exists():
-                    run_command(f'git rm "{target_path}"', check=False)
-                    run_command(f'rm -f "{target_path}"', check=False)
-                    HAS_CHANGES = True
-                    print(f"Removed synced file: {target_path} (source: {deleted_file})")
 
-    if HAS_CHANGES:
-        if TEST_JSON_CHANGED and not FILES_TO_SYNC_FOUND:
-            run_command(f'git commit -m "Update sync mapping from {REPO_NAME} PR {PR_NUMBER}"')
-        else:
-            run_command(f'git commit -m "Sync changes from {REPO_NAME} PR {PR_NUMBER}"')
-        
-        run_command(f"git push origin {BRANCH_NAME}")
-        print(f"Successfully pushed changes to {BRANCH_NAME}")
-    else:
+            for target_dir in targets:
+                if target_dir and Path(target_dir).exists():
+                    run_command(f'git rm "{target_dir}"', check=False)
+                    run_command(f'rm -f "{target_dir}"', check=False)
+                    has_changes = True
+                    print(f"Removed synced file: {target_dir} (source: {deleted_file})")
+
+    return has_changes
+
+
+def commit_and_push(commit_context: CommitContextStorage) -> None:
+    """
+    Commit and push changes if they exist
+    """
+    if not commit_context.has_changes:
         print("No changes to commit")
         sys.exit(0)
 
-    pr_list = get_gh_json(f"gh pr list --repo QuietHellsPage/{TARGET_REPO} --head {BRANCH_NAME} --json number")
-    TARGET_PR_NUMBER = None
+    if commit_context.test_json_changed and not commit_context.files_to_sync_found:
+        run_command(
+            'git commit -m "Update sync mapping from ' 
+            f'{commit_context.repo_name} PR {commit_context.pr_number}"'
+        )
+    else:
+        run_command(
+            'git commit -m "Sync changes from '
+            f'{commit_context.repo_name} PR {commit_context.pr_number}"'
+        )
+
+    run_command(f"git push origin {commit_context.branch_name}")
+    print(f"Successfuly pushed changes to {commit_context.branch_name}")
+
+
+def create_or_update_pr(target_repo: str, branch_name: str, repo_name: str, pr_number: str) -> None:
+    """
+    Create or update PR in target repo
+    """
+    pr_list = get_gh_json(
+        f"gh pr list --repo QuietHellsPage/{target_repo} --head {branch_name} --json number"
+    )
+
+    target_pr_number = None
+
     if pr_list and isinstance(pr_list, list) and len(pr_list) > 0:
         first_pr = pr_list[0]
-        if isinstance(first_pr, dict) and 'number' in first_pr:
-            TARGET_PR_NUMBER = first_pr['number']
+        if isinstance(first_pr, dict) and "number" in first_pr:
+            target_pr_number = first_pr["number"]
 
-    commit_check = run_command(f"git log --oneline origin/main..{BRANCH_NAME}", capture_output=True)
+    commit_check = run_command(f"git log --oneline origin/main..{branch_name}", capture_output=True)
     if commit_check.stdout.strip():
-        if not TARGET_PR_NUMBER:
-            run_command(f"""gh pr create \
-                --repo QuietHellsPage/{TARGET_REPO} \
-                --head {BRANCH_NAME} \
+        if not target_pr_number:
+            run_command(
+                f"""gh pr create \
+                --repo QuietHellsPage/{target_repo} \
+                --head {branch_name} \
                 --base main \
-                --title "[Automated] Sync from {REPO_NAME} PR {PR_NUMBER}" \
+                --title "[Automated] Sync from {repo_name} PR {pr_number}" \
                 --fill \
                 --label "automated pr" \
                 --assignee QuietHellsPage \
-                --reviewer QuietHellsPage""")
+                --reviewer QuietHellsPage"""
+            )
             print("Created new PR in target repository")
         else:
-            run_command(f"gh pr comment {TARGET_PR_NUMBER} --repo QuietHellsPage/{TARGET_REPO} --body 'Automatically updated'")
-            print(f"Updated existing PR #{TARGET_PR_NUMBER} in target repository")
+            run_command(
+                f"""gh pr comment {target_pr_number} \
+            --repo QuietHellsPage/{target_repo} \
+            --body 'Automatically updated'"""
+            )
+            print(f"Updated existing PR #{target_pr_number} in target repository")
     else:
-        print(f"No commits in branch {BRANCH_NAME} - skipping PR creation")
+        print(f"No commits in branch {branch_name} - skipping PR creation")
 
 
-if __name__ == '__main__':
+def main() -> None: # pylint: disable=too-many-locals
+    """
+    Main function to run the process
+    """
+    if (sys_len := len(sys.argv)) < 3:
+        print(f"Lenght of command line args is {sys_len}, what is less than 3")
+        sys.exit(1)
+
+    repo_name = sys.argv[1]
+    pr_number = sys.argv[2]
+
+    target_repo = "Child_repo_mirror"
+    branch_name = f"auto-update-from-{repo_name}-pr-{pr_number}"
+
+    gh_token = os.getenv("GH_TOKEN")
+    github_repository = os.getenv("GITHUB_REPOSITORY")
+    comment_body = os.getenv("COMMENT_BODY", "")
+
+    setup_and_authorize(target_repo=target_repo, gh_token=gh_token)
+    use_or_create_label(target_repo=target_repo)
+    setup_branch(branch_name=branch_name)
+
+    source_ref = get_source_ref(
+        github_repository=github_repository, pr_number=pr_number, comment_body=comment_body
+    )
+
+    if not source_ref:
+        print("Source ref not found")
+        sys.exit(1)
+
+    pr_files_data = get_gh_json(f"gh pr view {pr_number} --repo {github_repository} --json files")
+    files_data = get_pr_files_data(pr_files_data)
+    changed_files = [file["path"] for file in files_data]
+
+    if not changed_files:
+        print(f"No changed files found in PR {pr_number}")
+        sys.exit(0)
+
+    test_json_changed, json_exists, json_content = handle_update(
+        source_ref=source_ref, changed_files=changed_files
+    )
+
+    files_to_sync_found = has_files_for_sync(changed_files, json_content) if json_exists else False
+
+    if not files_to_sync_found and not test_json_changed:
+        print(f"No files to sync found in PR {pr_number}")
+        sys.exit(0)
+
+    has_changes = False
+
+    if json_exists:
+        has_changes = sync_modified_files(
+            changed_files=changed_files, json_content=json_content, source_ref=source_ref
+        )
+        has_deleted_files = handle_deleted_files(files_data=files_data, json_content=json_content)
+
+        has_changes = has_changes or has_deleted_files
+
+    context = CommitContextStorage(repo_name, pr_number, branch_name, test_json_changed,
+                                   files_to_sync_found, has_changes)
+
+    commit_and_push(context)
+
+    create_or_update_pr(
+        target_repo=target_repo, branch_name=branch_name, repo_name=repo_name, pr_number=pr_number
+    )
+
+
+if __name__ == "__main__":
     main()
