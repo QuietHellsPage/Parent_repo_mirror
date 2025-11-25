@@ -374,6 +374,9 @@ def main() -> None: # pylint: disable=too-many-locals
     use_or_create_label(target_repo=target_repo)
     setup_branch(branch_name=branch_name)
 
+    run_command("git remote add parent-repo https://github.com/$GITHUB_REPOSITORY.git")
+    run_command("git fetch parent-repo")
+
     source_ref = get_source_ref(
         github_repository=github_repository, pr_number=pr_number, comment_body=comment_body
     )
