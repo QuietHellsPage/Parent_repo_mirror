@@ -397,7 +397,25 @@ def main() -> None: # pylint: disable=too-many-locals
         source_ref=source_ref, changed_files=changed_files
     )
 
-    files_to_sync_found = has_files_for_sync(changed_files, json_content) if json_exists else False
+    if not json_exists:
+        json_content_cmd = run_command(
+            f"git show {source_ref}:autosync/test_files.json",
+            capture_output=True,
+        )
+        if json_content_cmd.returncode == 0:
+            try:
+                json_content = json.loads(json_content_cmd.stdout)
+                json_exists = True
+                print("Successfully loaded existing test_files.json")
+            except json.JSONDecodeError:
+                print("Existing test_files.json is invalid JSON")
+
+    files_to_sync_found = False
+    if json_exists and json_content:
+        files_to_sync_found = has_files_for_sync(changed_files, json_content)
+        print(f"Files to sync found: {files_to_sync_found}")
+        print(f"JSON content: {json_content}")
+        print(f"Changed files: {changed_files}")
 
     if not files_to_sync_found and not test_json_changed:
         print(f"No files to sync found in PR {pr_number}")
@@ -405,13 +423,16 @@ def main() -> None: # pylint: disable=too-many-locals
 
     has_changes = False
 
-    if json_exists:
-        has_changes = sync_modified_files(
+    if test_json_changed:
+        has_changes = True
+
+    if json_exists and json_content:
+        sync_result = sync_modified_files(
             changed_files=changed_files, json_content=json_content, source_ref=source_ref
         )
         has_deleted_files = handle_deleted_files(files_data=files_data, json_content=json_content)
 
-        has_changes = has_changes or has_deleted_files
+        has_changes = has_changes or sync_result or has_deleted_files
 
     context = CommitContextStorage(repo_name, pr_number, branch_name, test_json_changed,
                                    files_to_sync_found, has_changes)
