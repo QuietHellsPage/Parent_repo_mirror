@@ -12,7 +12,7 @@ def main() -> None:
     with open("assets/Master_and_Margarita_chapter1.txt", "r", encoding="utf-8") as file:
         te = file.read()
     with open("assets/stop_words.txt", "r", encoding="utf-8") as file:
-        s = file.read().split("\n")
+        sss = file.read().split("\n")
     with (
         open("assets/incorrect_sentence_1.txt", "r", encoding="utf-8") as f1,
         open("assets/incorrect_sentence_2.txt", "r", encoding="utf-8") as f2,
