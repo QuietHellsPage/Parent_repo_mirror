@@ -39,6 +39,8 @@ def run_command(
     """
     Run command and return result
     """
+    print(f"Executing command: {cmd}")
+
     try:
         result = subprocess.run(
             cmd, shell=True, capture_output=capture_output, text=True, check=check
@@ -47,6 +49,10 @@ def run_command(
 
     except subprocess.CalledProcessError as e:
         print(f"Command {cmd} failed with exit code {e.returncode}")
+        if e.stderr:
+            print(f"Command stderr: {e.stderr}")
+        if e.stdout:
+            print(f"Command stdout: {e.stdout}")
         sys.exit(e.returncode)
 
 
@@ -106,14 +112,18 @@ def setup_and_authorize(target_repo: str, gh_token: str) -> None:
     """
     Clone repo and authorize as bot
     """
+    print(f"Setting up and authorizing for target repo: {target_repo}")
+
     run_command(f"rm -rf {target_repo}")
     run_command(f"git clone https://{gh_token}@github.com/QuietHellsPage/{target_repo}.git")
 
     target_path = Path(target_repo)
     os.chdir(target_path)
+    print(f"Changed working directory to: {os.getcwd()}")
 
     run_command('git config user.name "github-actions[bot]"')
     run_command('git config user.email "41898282+github-actions[bot]@users.noreply.github.com"')
+    print("Git user configuration set")
 
 
 def use_or_create_label(target_repo: str) -> None:
@@ -142,13 +152,16 @@ def setup_branch(branch_name: str) -> None:
     """
     Create new branch or checkout on it
     """
+    print(f"Setting up branch: {branch_name}")
     branch_check = run_command(
         f"git show-ref --quiet refs/remotes/origin/{branch_name}", check=False
     )
     if branch_check.returncode == 0:
+        print(f"Branch {branch_name} exists, checking out")
         run_command(f"git checkout {branch_name}")
         run_command(f"git pull origin {branch_name}")
     else:
+        print(f"Branch {branch_name} doesn't exist, creating new branch")
         run_command(f"git checkout -b {branch_name}")
 
 
@@ -173,6 +186,7 @@ def handle_update(source_ref: str, changed_files: List[Any]) -> tuple[bool, bool
     """
     Process if tracked_files.json is updated in PR
     """
+    print(f"Checking for tracked_files.json changes in: {changed_files}")
     test_json_changed = False
     json_exists = False
     json_content = None
@@ -184,9 +198,11 @@ def handle_update(source_ref: str, changed_files: List[Any]) -> tuple[bool, bool
             capture_output=True,
         )
         if json_content_cmd.returncode == 0:
+            print("Successfully retrieved tracked_files.json content")
             test_files_path = Path("autosync/test_files.json")
             test_files_path.parent.mkdir(parents=True, exist_ok=True)
             test_files_path.write_text(json_content_cmd.stdout, encoding="utf-8")
+            print(f"Written tracked_files.json to {test_files_path}")
 
             run_command("git add autosync/test_files.json")
             test_json_changed = True
@@ -198,6 +214,10 @@ def handle_update(source_ref: str, changed_files: List[Any]) -> tuple[bool, bool
             except json.JSONDecodeError:
                 print("Updated tracked_files.json is invalid JSON")
                 sys.exit(1)
+        else:
+            print("Failed to retrieve tracked_files.json content")
+    else:
+        print("No changes of tracked_files.json were found ")
 
     return test_json_changed, json_exists, json_content
 
@@ -225,11 +245,13 @@ def sync_modified_files(changed_files: List[str], json_content: Any, source_ref:
     """
     Synchronize modified files
     """
+    print(f"Starting sync for {len(changed_files)} changed files")
     has_changes = False
 
     for file in changed_files:
         if file == "autosync/test_files.json":
             continue
+        print(f"Processing file: {file}")
         if json_content:
             targets = []
             for mapping in json_content:
@@ -237,10 +259,12 @@ def sync_modified_files(changed_files: List[str], json_content: Any, source_ref:
                     target = mapping.get("target")
                     if target:
                         targets.append(target)
+            print(f"Found {len(targets)} target mappings for {file}: {targets}")
 
             for target_dir in targets:
                 if target_dir:
                     target_path = Path(target_dir)
+                    print(f"Creating directory structure for: {target_path}")
                     target_path.parent.mkdir(parents=True, exist_ok=True)
 
                     file_content_cmd = run_command(
@@ -254,7 +278,7 @@ def sync_modified_files(changed_files: List[str], json_content: Any, source_ref:
                         print(f"Synced file: {file} -> {target_dir}")
                     else:
                         print(f"Warning: Could not read file {file} from {source_ref}")
-
+    print(f"Sync completed. Changes made: {has_changes}")
     return has_changes
 
 
@@ -363,6 +387,10 @@ def main() -> None: # pylint: disable=too-many-locals
     repo_name = sys.argv[1]
     pr_number = sys.argv[2]
 
+    print(f"Starting external PR sync for repo: {repo_name}, PR: {pr_number}")
+    print(f"GITHUB_REPOSITORY: {os.getenv('GITHUB_REPOSITORY')}")
+    print(f"COMMENT_BODY present: {bool(os.getenv('COMMENT_BODY', ''))}")
+
     target_repo = "Child_repo_mirror"
     branch_name = f"auto-update-from-{repo_name}-pr-{pr_number}"
 
@@ -442,6 +470,17 @@ def main() -> None: # pylint: disable=too-many-locals
     create_or_update_pr(
         target_repo=target_repo, branch_name=branch_name, repo_name=repo_name, pr_number=pr_number
     )
+    
+    print("=" * 50)
+    print("EXECUTION SUMMARY:")
+    print(f"Repository: {repo_name}")
+    print(f"PR: {pr_number}") 
+    print(f"Target repo: {target_repo}")
+    print(f"Branch: {branch_name}")
+    print(f"JSON changed: {test_json_changed}")
+    print(f"Files to sync found: {files_to_sync_found}")
+    print(f"Has changes: {has_changes}")
+    print("=" * 50)
 
 
 if __name__ == "__main__":
