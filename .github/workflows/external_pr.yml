@@ -1,50 +1,42 @@
 name: "Create PR in external repo using GH CLI"
 
 on:
-  issue_comment:
-    types: [created]
   push:
-    branches: [main]
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   CreateExternalPR:
-    if: |
-      (github.event_name == 'issue_comment' && 
-       github.event.issue.pull_request != null && 
-       contains(github.event.comment.body, '[SYNC_TO_CHILD]') && 
-       github.event.issue.state == 'open') ||
-      (github.event_name == 'push' && 
-       startsWith(github.event.head_commit.message, 'Merge pull request'))
+    # if: |
+    #   (github.event_name == 'issue_comment' && 
+    #    github.event.issue.pull_request != null && 
+    #    contains(github.event.comment.body, '[SYNC_TO_CHILD]') && 
+    #    github.event.issue.state == 'open') ||
+    #   (github.event_name == 'push' && 
+    #    startsWith(github.event.head_commit.message, 'Merge pull request'))
     runs-on: ubuntu-latest
 
     steps:
-      - name: Determine PR number and SHA based on trigger
-        id: trigger-info
-        run: |
-          if [ "${{ github.event_name }}" == "issue_comment" ]; then
-            echo "pr_number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
-            echo "head_sha=${{ github.event.issue.pull_request.head.sha }}" >> $GITHUB_OUTPUT
-            echo "actor=${{ github.event.comment.user.login }}" >> $GITHUB_OUTPUT
-          else
-            PR_NUMBER=$(echo "${{ github.event.head_commit.message }}" | sed -n 's/.*Merge pull request #\([0-9]*\).*/\1/p')
-            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-            echo "head_sha=${{ github.sha }}" >> $GITHUB_OUTPUT
-            echo "actor=${{ github.actor }}" >> $GITHUB_OUTPUT
-          fi
-
+      # - name: Determine PR number and SHA based on trigger
+      #   id: trigger-info
+      #   run: |
+      #     PR_NUMBER=$(echo "${{ github.event.head_commit.message }}" | sed -n 's/.*Merge pull request #\([0-9]*\).*/\1/p')
+      #     echo "pr_number=75" >> $GITHUB_OUTPUT
+      #     echo "head_sha=e27c21e" >> $GITHUB_OUTPUT
+      #     echo "actor=QuietHellsPage" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.trigger-info.outputs.head_sha }}
 
       - name: Setup GitHub CLI
         run: |
-          bash external_pr_files/setup_cli.sh
-
+          bash config/external_pr_files/setup_cli.sh
       - name: Sync repositories
         run: |
-          python external_pr_files/external_pr.py "${{ github.event.repository.name }}" "${{ steps.trigger-info.outputs.pr_number }}"
+          bash config/external_pr_files/create_external_pr.sh "${{ github.event.repository.name }}" "${{ steps.trigger-info.outputs.pr_number }}"
         env:
           GH_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
-          GITHUB_SHA: ${{ steps.trigger-info.outputs.head_sha }}
-          GITHUB_ACTOR: ${{ steps.trigger-info.outputs.actor }}
-          COMMENT_BODY: ${{ github.event.comment.body }}
+          # GITHUB_SHA: ${{ steps.trigger-info.outputs.head_sha }}
+          GITHUB_ACTOR: QuietHellsPage
+          # COMMENT_BODY: ${{ github.event.comment.body }}
