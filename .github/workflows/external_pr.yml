@@ -31,10 +31,10 @@ jobs:
 
       - name: Setup GitHub CLI
         run: |
-          bash config/external_pr_files/setup_cli.sh
+          bash external_pr_files/setup_cli.sh
       - name: Sync repositories
         run: |
-          bash config/external_pr_files/create_external_pr.sh "${{ github.event.repository.name }}" "${{ steps.trigger-info.outputs.pr_number }}"
+          bash external_pr_files/create_external_pr.sh "${{ github.event.repository.name }}" "${{ steps.trigger-info.outputs.pr_number }}"
         env:
           GH_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
           # GITHUB_SHA: ${{ steps.trigger-info.outputs.head_sha }}
