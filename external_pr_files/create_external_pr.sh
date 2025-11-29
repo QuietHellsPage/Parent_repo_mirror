@@ -47,10 +47,9 @@ if [ -z "$CHANGED_FILES" ]; then
     exit 0
 fi
 
-JSON_EXISTS=false
-if git show pr-source/$PR_BRANCH:autosync/test_files.json &>/dev/null; then
+if git show parent-repo/$PR_BRANCH:autosync/test_files.json &>/dev/null; then
     JSON_EXISTS=true
-    JSON_CONTENT=$(git show pr-source/$PR_BRANCH:autosync/test_files.json 2>/dev/null || echo "")
+    JSON_CONTENT=$(git show parent-repo/$PR_BRANCH:autosync/test_files.json 2>/dev/null || echo "")
     
     if ! echo "$JSON_CONTENT" | jq -e . >/dev/null 2>&1; then
         JSON_EXISTS=false
@@ -64,7 +63,7 @@ HAS_CHANGES=false
 FILES_TO_SYNC_FOUND=false
 
 if echo "$CHANGED_FILES" | grep -q "autosync/test_files.json"; then
-    if git show pr-source/$PR_BRANCH:autosync/test_files.json > autosync/test_files.json 2>/dev/null; then
+    if git show parent-repo/$PR_BRANCH:autosync/test_files.json > autosync/test_files.json 2>/dev/null; then
         git add autosync/test_files.json
         TEST_JSON_CHANGED=true
         HAS_CHANGES=true
@@ -107,11 +106,11 @@ for file in $CHANGED_FILES; do
             if [ -n "$TARGET_DIR" ]; then
                 TARGET_DIR_ONLY=$(dirname "$TARGET_DIR")
                 mkdir -p "$TARGET_DIR_ONLY"
-                if git show pr-source/$PR_BRANCH:"$file" > "$TARGET_DIR" 2>/dev/null; then
+                if git show parent-repo/$PR_BRANCH:"$file" > "$TARGET_DIR" 2>/dev/null; then
                     git add "$TARGET_DIR"
                     HAS_CHANGES=true
                 else
-                    echo "Warning: Could not read file $file from pr-source/$PR_BRANCH"
+                    echo "Warning: Could not read file $file from parent-repo/$PR_BRANCH"
                 fi
             fi
         done
