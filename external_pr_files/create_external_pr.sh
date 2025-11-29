@@ -1,7 +1,7 @@
 #!/bin/bash
 set -ex
 
-REPO_NAME="$1"
+REPO_NAME=$1
 PR_NUMBER=$2
 TARGET_REPO="Child_repo_mirror"
 BRANCH_NAME="auto-update-from-$REPO_NAME-pr-$PR_NUMBER"
@@ -14,9 +14,9 @@ cd $TARGET_REPO
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-# Create Label
 if ! gh label list --repo QuietHellsPage/$TARGET_REPO --json name -q '.[] | select(.name == "automated pr")' | grep -q "automated pr"; then
     gh label create "automated pr" --color "0E8A16" --description "Automated pull request" --repo QuietHellsPage/$TARGET_REPO
+    sleep 2
 fi
 
 # Check PR and Update Branch
