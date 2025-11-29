@@ -5,12 +5,10 @@ REPO_NAME="$1"
 PR_NUMBER=$2
 TARGET_REPO="Child_repo_mirror"
 BRANCH_NAME="auto-update-from-$REPO_NAME-pr-$PR_NUMBER"
-# GITHUB_REPOSITORY="QuietHellsPage/Parent_repo_mirror"
 COMMENT_BODY=${COMMENT_BODY:-""}
 
 # Clone Target Repo
 rm -rf $TARGET_REPO
-
 git clone https://$GH_TOKEN@github.com/QuietHellsPage/$TARGET_REPO.git
 cd $TARGET_REPO
 git config user.name "github-actions[bot]"
@@ -29,15 +27,13 @@ else
     git checkout -b $BRANCH_NAME
 fi
 
-if [ -n "$COMMENT_BODY" ] && [ "$COMMENT_BODY" != "" ]; then
-    PR_BRANCH=$(gh pr view $PR_NUMBER --repo $REPO_NAME --json headRefName --jq '.headRefName' 2>/dev/null || echo "")
-    SOURCE_REF="parent-repo/$PR_BRANCH"
-else
-    PR_BRANCH="main"
-    SOURCE_REF="parent-repo/main"
-fi
+PR_DATA=$(gh pr view $PR_NUMBER --repo $REPO_NAME --json headRefName,headRepository,headRepositoryOwner --jq '.')
+PR_BRANCH=$(echo "$PR_DATA" | jq -r '.headRefName')
+HEAD_REPO=$(echo "$PR_DATA" | jq -r '.headRepository.name')
+HEAD_OWNER=$(echo "$PR_DATA" | jq -r '.headRepositoryOwner.login')
 
 if [ -z "$PR_BRANCH" ]; then
+    echo "Could not get PR branch information"
     exit 0
 fi
 
@@ -52,9 +48,9 @@ if [ -z "$CHANGED_FILES" ]; then
 fi
 
 JSON_EXISTS=false
-if git show $SOURCE_REF:autosync/test_files.json &>/dev/null; then
+if git show pr-source/$PR_BRANCH:autosync/test_files.json &>/dev/null; then
     JSON_EXISTS=true
-    JSON_CONTENT=$(git show $SOURCE_REF:autosync/test_files.json 2>/dev/null || echo "")
+    JSON_CONTENT=$(git show pr-source/$PR_BRANCH:autosync/test_files.json 2>/dev/null || echo "")
     
     if ! echo "$JSON_CONTENT" | jq -e . >/dev/null 2>&1; then
         JSON_EXISTS=false
@@ -68,7 +64,7 @@ HAS_CHANGES=false
 FILES_TO_SYNC_FOUND=false
 
 if echo "$CHANGED_FILES" | grep -q "autosync/test_files.json"; then
-    if git show $SOURCE_REF:autosync/test_files.json > autosync/test_files.json 2>/dev/null; then
+    if git show pr-source/$PR_BRANCH:autosync/test_files.json > autosync/test_files.json 2>/dev/null; then
         git add autosync/test_files.json
         TEST_JSON_CHANGED=true
         HAS_CHANGES=true
@@ -111,11 +107,11 @@ for file in $CHANGED_FILES; do
             if [ -n "$TARGET_DIR" ]; then
                 TARGET_DIR_ONLY=$(dirname "$TARGET_DIR")
                 mkdir -p "$TARGET_DIR_ONLY"
-                if git show $SOURCE_REF:"$file" > "$TARGET_DIR" 2>/dev/null; then
+                if git show pr-source/$PR_BRANCH:"$file" > "$TARGET_DIR" 2>/dev/null; then
                     git add "$TARGET_DIR"
                     HAS_CHANGES=true
                 else
-                    echo "Warning: Could not read file $file from $SOURCE_REF"
+                    echo "Warning: Could not read file $file from pr-source/$PR_BRANCH"
                 fi
             fi
         done
