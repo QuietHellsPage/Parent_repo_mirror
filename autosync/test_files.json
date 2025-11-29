@@ -54,5 +54,9 @@
   {
     "source": "lab_3_generate_by_ngrams/start.py",
     "target": "s.py"
+  },
+  {
+    "source": "test_cur.txt",
+    "target": "test_cur.txt"
   }
 ]
