@@ -3,34 +3,35 @@ name: "Create PR in external repo using GH CLI"
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  issue_comment:
+    types: [ created ]
 
 jobs:
   CreateExternalPR:
-    # if: |
-    #   (github.event_name == 'issue_comment' && 
-    #    github.event.issue.pull_request != null && 
-    #    contains(github.event.comment.body, '[SYNC_TO_CHILD]') && 
-    #    github.event.issue.state == 'open') ||
-    #   (github.event_name == 'push' && 
-    #    startsWith(github.event.head_commit.message, 'Merge pull request'))
+    if: |
+      (github.event_name == 'issue_comment' && 
+       github.event.issue.state == 'open' &&
+       contains(github.event.comment.body, '[SYNC_TO_CHILD]')) ||
+      (github.event_name == 'push' && 
+       startsWith(github.event.head_commit.message, 'Merge pull request'))
     runs-on: ubuntu-latest
 
     steps:
-      - name: Determine PR number and SHA based on trigger
+      - name: Determine PR number based on trigger
         id: trigger-info
         run: |
-          PR_NUMBER=${{ github.event.pull_request.number }}
-          HEAD_SHA=${{ github.event.pull_request.head.sha }}
-          ACTOR=${{ github.actor }}
+          if [ "${{ github.event_name }}" == "push" ]; then
+            PR_NUMBER=$(echo "${{ github.event.head_commit.message }}" | grep -oP 'Merge pull request #\K\d+')
+            ACTOR="${{ github.actor }}"
+          else
+            PR_NUMBER="${{ github.event.issue.number }}"
+            ACTOR="${{ github.actor }}"
+          fi
           
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-          echo "head_sha=$HEAD_SHA" >> $GITHUB_OUTPUT
           echo "actor=$ACTOR" >> $GITHUB_OUTPUT
+
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.trigger-info.outputs.head_sha }}
 
       - name: Setup GitHub CLI
         run: |
@@ -38,9 +39,7 @@ jobs:
 
       - name: Sync repositories
         run: |
-          bash external_pr_files/create_external_pr.sh "${{ github.event.repository.name }}" "${{ github.event.pull_request.number }}"
+          bash external_pr_files/create_external_pr.sh "${{ github.repository }}" "${{ steps.trigger-info.outputs.pr_number }}"
         env:
           GH_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
-          # GITHUB_SHA: ${{ steps.trigger-info.outputs.head_sha }}
           GITHUB_ACTOR: ${{ steps.trigger-info.outputs.actor }}
-          # COMMENT_BODY: ${{ github.event.comment.body }}
