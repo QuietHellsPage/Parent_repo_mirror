@@ -1,7 +1,7 @@
 #!/bin/bash
 set -ex
 
-REPO_NAME="QuietHellsPage/$1"
+REPO_NAME=$1
 PR_NUMBER=$2
 TARGET_REPO="Child_repo_mirror"
 BRANCH_NAME="auto-update-from-$REPO_NAME-pr-$PR_NUMBER"
