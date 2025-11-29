@@ -1,11 +1,11 @@
 #!/bin/bash
-set -e
+set -ex
 
-REPO_NAME=$1
+REPO_NAME="QuietHellsPage/$1"
 PR_NUMBER=$2
 TARGET_REPO="Child_repo_mirror"
 BRANCH_NAME="auto-update-from-$REPO_NAME-pr-$PR_NUMBER"
-GITHUB_REPOSITORY="QuietHellsPage/Parent_repo_mirror"
+# GITHUB_REPOSITORY="QuietHellsPage/Parent_repo_mirror"
 COMMENT_BODY=${COMMENT_BODY:-""}
 
 # Clone Target Repo
@@ -30,7 +30,7 @@ else
 fi
 
 if [ -n "$COMMENT_BODY" ] && [ "$COMMENT_BODY" != "" ]; then
-    PR_BRANCH=$(gh pr view $PR_NUMBER --repo $GITHUB_REPOSITORY --json headRefName --jq '.headRefName' 2>/dev/null || echo "")
+    PR_BRANCH=$(gh pr view $PR_NUMBER --repo $REPO_NAME --json headRefName --jq '.headRefName' 2>/dev/null || echo "")
     SOURCE_REF="parent-repo/$PR_BRANCH"
 else
     PR_BRANCH="main"
@@ -41,10 +41,10 @@ if [ -z "$PR_BRANCH" ]; then
     exit 0
 fi
 
-git remote add parent-repo https://$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git
+git remote add parent-repo https://$GH_TOKEN@github.com/$REPO_NAME.git
 git fetch parent-repo
 
-CHANGED_FILES=$(gh pr view $PR_NUMBER --repo $GITHUB_REPOSITORY --json files --jq '.files[].path' 2>/dev/null || echo "")
+CHANGED_FILES=$(gh pr view $PR_NUMBER --repo $REPO_NAME --json files --jq '.files[].path' 2>/dev/null || echo "")
 
 if [ -z "$CHANGED_FILES" ]; then
     echo "No changed files found in PR $PR_NUMBER"
@@ -122,7 +122,7 @@ for file in $CHANGED_FILES; do
     fi
 done
 
-PR_DELETED_FILES=$(gh pr view $PR_NUMBER --repo $GITHUB_REPOSITORY --json files --jq '.files[] | select(.status == "removed") | .path' 2>/dev/null || echo "")
+PR_DELETED_FILES=$(gh pr view $PR_NUMBER --repo $REPO_NAME --json files --jq '.files[] | select(.status == "removed") | .path' 2>/dev/null || echo "")
 
 for deleted_file in $PR_DELETED_FILES; do
     if [ "$JSON_EXISTS" = true ]; then
