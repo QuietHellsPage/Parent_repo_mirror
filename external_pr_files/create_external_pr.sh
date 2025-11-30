@@ -7,6 +7,11 @@ TARGET_REPO="Child_repo_mirror"
 BRANCH_NAME="auto-update-from-$REPO_NAME-pr-$PR_NUMBER"
 COMMENT_BODY=${COMMENT_BODY:-""}
 
+
+echo "=== INPUT PARAMETERS ==="
+echo "REPO_NAME: $REPO_NAME"
+echo "PR_NUMBER: $PR_NUMBER"
+echo "TARGET_REPO: $TARGET_REPO"
 # Clone Target Repo
 rm -rf $TARGET_REPO
 git clone https://$GH_TOKEN@github.com/QuietHellsPage/$TARGET_REPO.git
@@ -31,6 +36,10 @@ PR_DATA=$(gh pr view $PR_NUMBER --repo $REPO_NAME --json headRefName,headReposit
 PR_BRANCH=$(echo "$PR_DATA" | jq -r '.headRefName')
 HEAD_REPO=$(echo "$PR_DATA" | jq -r '.headRepository.name')
 HEAD_OWNER=$(echo "$PR_DATA" | jq -r '.headRepositoryOwner.login')
+echo "PR_BRANCH: $PR_BRANCH"
+echo "HEAD_REPO: $HEAD_REPO" 
+echo "HEAD_OWNER: $HEAD_OWNER"
+echo "SOURCE REPO: $REPO_NAME"
 
 if [ -z "$PR_BRANCH" ]; then
     echo "Could not get PR branch information"
