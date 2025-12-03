@@ -9,7 +9,7 @@ on:
 jobs:
   CreateExternalPR:
     if: |
-      (github.event_name == 'issue_comment' && 
+      (github.event_name == 'issue_comment' &&
        github.event.issue.state == 'open' &&
        contains(github.event.comment.body, '[SYNC_TO_CHILD]')) ||
       (github.event_name == 'push' && 
@@ -17,6 +17,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout current branch (for workflow files)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+
       - name: Determine PR number based on trigger
         id: trigger-info
         run: |
@@ -30,8 +35,6 @@ jobs:
           
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
           echo "actor=$ACTOR" >> $GITHUB_OUTPUT
-
-      - uses: actions/checkout@v4
 
       - name: Setup GitHub CLI
         run: |
