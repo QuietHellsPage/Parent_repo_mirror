@@ -52,7 +52,6 @@ class SyncConfig:
 
     target_repo: str
     changed_files: List[str]
-    deleted_files: List[str]
     json_content: Optional[dict]
     json_changed: bool
     pr_branch: str
@@ -319,42 +318,6 @@ def sync_files_from_pr(
     return has_changes
 
 
-def handle_deleted_files(
-    repo_path: str, 
-    deleted_files: List[str], 
-    sync_mapping: List[Tuple[str, str]]
-) -> bool:
-    """
-    Process deleted files using sync mapping.
-    Returns True if any files were deleted.
-    """
-    has_changes = False
-
-    source_to_targets = {}
-    for source, target in sync_mapping:
-        if source not in source_to_targets:
-            source_to_targets[source] = []
-        source_to_targets[source].append(target)
-
-    for deleted_file in deleted_files:
-        targets = source_to_targets.get(deleted_file, [])
-        
-        for target_path in targets:
-            if not target_path:
-                continue
-            full_path = Path(repo_path) / target_path
-            if not full_path.exists():
-                continue
-            _, _, return_code = run_git(["rm", target_path], cwd=repo_path)
-
-            if return_code != 0:
-                run_rm(["-f", str(full_path)])
-
-            has_changes = True
-
-    return has_changes
-
-
 def commit_and_push_changes(commit_config: CommitConfig) -> None:
     """
     Commit and push changes
@@ -491,7 +454,7 @@ def prepare_target_repo(target_repo: str, branch_name: str, gh_token: str) -> No
 
 def get_pr_info(
     repo_name: str, pr_number: str, gh_token: str, target_repo: str
-) -> Tuple[str, List[str], List[str]]:
+) -> Tuple[str, List[str]]:
     """
     Get info about changes in PR from source repo
     """
@@ -507,11 +470,9 @@ def get_pr_info(
         sys.exit(0)
 
     changed_files = []
-    deleted_files = []
 
     if "files" in pr_data:
         changed_files = [f["path"] for f in pr_data["files"]]
-        deleted_files = [f["path"] for f in pr_data["files"] if f.get("status") == "removed"]
 
     if not changed_files:
         logger.info("No changes found in PR %s", pr_number)
@@ -521,7 +482,7 @@ def get_pr_info(
         "parent-repo", f"https://{gh_token}@github.com/{repo_name}.git", target_repo
     )
 
-    return pr_branch, changed_files, deleted_files
+    return pr_branch, changed_files
 
 
 def run_sync(sync_config: SyncConfig) -> SyncResult:
@@ -551,16 +512,6 @@ def run_sync(sync_config: SyncConfig) -> SyncResult:
             sync_needed_files
         )
         has_changes = has_changes or has_synced
-
-    if sync_config.deleted_files and sync_mapping:
-        has_deletions = handle_deleted_files(
-            sync_config.target_repo, 
-            sync_config.deleted_files, 
-            sync_mapping
-        )
-        has_changes = has_changes or has_deletions
-        if has_deletions:
-            files_to_sync_found = True
     
     return SyncResult(
         has_changes=has_changes,
@@ -577,7 +528,7 @@ def main() -> None:
 
     prepare_target_repo(target_repo, branch_name, gh_token)
 
-    pr_branch, changed_files, deleted_files = get_pr_info(
+    pr_branch, changed_files = get_pr_info(
         repo_name, pr_number, gh_token, target_repo
     )
 
@@ -597,7 +548,7 @@ def main() -> None:
         sys.exit(0)
 
     sync_result = run_sync(
-        SyncConfig(target_repo, changed_files, deleted_files, json_content, json_changed, pr_branch)
+        SyncConfig(target_repo, changed_files, json_content, json_changed, pr_branch)
     )
 
     if sync_result.has_changes:
