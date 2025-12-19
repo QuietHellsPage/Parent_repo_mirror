@@ -33,6 +33,15 @@ jobs:
           
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
 
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
       - name: Setup GitHub CLI
         run: |
           bash external_pr_files/setup_cli.sh
