@@ -8,26 +8,13 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast, Dict, List, Optional, Tuple
+from typing import Any, cast, Optional
 
 from config.cli_unifier import _run_console_tool, handles_console_error
 from config.console_logging import get_child_logger
+from config.constants import TRACKED_JSON_PATH
 
 logger = get_child_logger(__file__)
-
-
-@dataclass(slots=True)
-class ConfigData:
-    """
-    Storage for info about configuration for creating PR
-    """
-
-    repo_path: str
-    remote_name: str
-    pr_branch: str
-    changed_files: List[str]
-    json_content: Dict
-    json_changed: bool
 
 
 @dataclass(slots=True)
@@ -51,7 +38,7 @@ class SyncConfig:
     """
 
     target_repo: str
-    changed_files: List[str]
+    changed_files: list[str]
     json_content: Optional[dict]
     json_changed: bool
     pr_branch: str
@@ -70,7 +57,7 @@ class SyncResult:
 
 # Wrappers for basic commands
 @handles_console_error(ok_codes=(0, 1))
-def run_git(args: List[str], **kwargs: List[str]) -> Tuple[str, str, int]:
+def run_git(args: list[str], **kwargs: str) -> tuple[str, str, int]:
     """
     Run git command via imported function
     """
@@ -78,15 +65,15 @@ def run_git(args: List[str], **kwargs: List[str]) -> Tuple[str, str, int]:
 
 
 @handles_console_error(ok_codes=(0, 1))
-def run_gh(args: List[str], **kwargs: List[str]) -> Tuple[str, str, int]:
+def run_gh(args: list[str]) -> tuple[str, str, int]:
     """
     Run gh command via imported function
     """
-    return _run_console_tool("gh", args, **kwargs)
+    return _run_console_tool("gh", args)
 
 
 @handles_console_error(ok_codes=(0,))
-def run_mkdir(args: List[str], **kwargs: List[str]) -> Tuple[str, str, int]:
+def run_mkdir(args: list[str], **kwargs: str) -> tuple[str, str, int]:
     """
     Create directory via imported function
     """
@@ -94,22 +81,22 @@ def run_mkdir(args: List[str], **kwargs: List[str]) -> Tuple[str, str, int]:
 
 
 @handles_console_error(ok_codes=(0,))
-def run_rm(args: List[str], **kwargs: List[str]) -> Tuple[str, str, int]:
+def run_rm(args: list[str]) -> tuple[str, str, int]:
     """
     Remove anything via imported function
     """
-    return _run_console_tool("rm", args, **kwargs)
+    return _run_console_tool("rm", args)
 
 
 @handles_console_error(ok_codes=(0,))
-def run_sleep(args: List[str], **kwargs: List[str]) -> Tuple[str, str, int]:
+def run_sleep(args: list[str]) -> tuple[str, str, int]:
     """
     Run sleep command via imported function
     """
-    return _run_console_tool("sleep", args, **kwargs)
+    return _run_console_tool("sleep", args)
 
 
-def get_pr_data(repo_name: str, pr_number: str) -> Dict[str, Any]:
+def get_pr_data(repo_name: str, pr_number: str) -> dict[str, Any]:
     """
     Get PR data via gh
     """
@@ -130,7 +117,7 @@ def get_pr_data(repo_name: str, pr_number: str) -> Dict[str, Any]:
         return {}
 
     data = json.loads(stdout)
-    return cast(Dict[str, Any], data)
+    return cast(dict[str, Any], data)
 
 
 def check_branch_exists(branch_name: str, repo_path: str = ".") -> bool:
@@ -194,7 +181,7 @@ def check_and_create_label(target_repo: str) -> None:
                 f"QuietHellsPage/{target_repo}",
             ]
         )
-        run_sleep(["2"])
+        run_sleep("2")
 
 
 def checkout_or_create_branch(branch_name: str, repo_path: str) -> None:
@@ -222,69 +209,61 @@ def add_remote_and_fetch(remote_name: str, repo_url: str, repo_path: str) -> Non
 
 
 def get_and_update_json_if_changed(
-    repo_path: str, 
-    remote_name: str, 
-    pr_branch: str, 
-    changed_files: List[str]
-) -> Tuple[Optional[Dict], bool]:
+    repo_path: str, remote_name: str, pr_branch: str, changed_files: list[str]
+) -> tuple[Optional[dict], bool]:
     """
-    Get JSON content from remote branch and update it locally if changed
+    Get json content from remote branch
     """
-    json_file_path = "autosync/test_files.json"
-    
     json_content = None
-    json_changed = json_file_path in changed_files
+    json_changed = TRACKED_JSON_PATH in changed_files
 
     stdout, _, return_code = run_git(
-        ["show", f"{remote_name}/{pr_branch}:{json_file_path}"],
+        ["show", f"{remote_name}/{pr_branch}:{TRACKED_JSON_PATH}"],
         cwd=repo_path,
     )
-    
+
     if return_code == 0 and stdout:
         json_content = json.loads(stdout)
 
         if json_changed:
-            json_path = Path(repo_path) / json_file_path
+            json_path = Path(repo_path) / TRACKED_JSON_PATH
             json_path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             with open(json_path, "w", encoding="utf-8") as f:
                 f.write(stdout)
-                
-            run_git(["add", json_file_path], cwd=repo_path)
+
+            run_git(["add", TRACKED_JSON_PATH], cwd=repo_path)
     elif json_changed:
-        json_path = Path(repo_path) / json_file_path
+        json_path = Path(repo_path) / TRACKED_JSON_PATH
         if json_path.exists():
-            run_git(["rm", json_file_path], cwd=repo_path)
+            run_git(["rm", TRACKED_JSON_PATH], cwd=repo_path)
             json_content = {}
-    
+
     return json_content, json_changed
 
 
-def get_sync_mapping(
-    json_content: Optional[Dict]
-) -> List[Tuple[str, str]]:
+def get_sync_mapping(json_content: Optional[dict]) -> list[tuple[str, ...]]:
     """
     Extract sync mapping from JSON.
     """
-    sync_mapping = []
-    if json_content:
-        for item in json_content:
-            source = item.get("source")
-            target = item.get("target")
-            if source and target:
-                sync_mapping.append((source, target))
+    sync_mapping: list[tuple[str, ...]] = []
+
+    if not json_content:
+        return []
+
+    for item in json_content:
+        source = item.get("source")
+        target = item.get("target")
+        if source and target:
+            sync_mapping.append((source, target))
     return sync_mapping
 
 
 def sync_files_from_pr(
-    repo_path: str,
-    remote_name: str,
-    pr_branch: str,
-    sync_mapping: List[Tuple[str, str]]
+    repo_path: str, remote_name: str, pr_branch: str, sync_mapping: list[tuple[str, ...]]
 ) -> bool:
     """
-    Sync files from PR into target repo using provided sync mapping.
-    Returns True if any files were synced.
+    Sync files from PR into target repo
     """
     has_changes = False
 
@@ -386,18 +365,17 @@ def create_or_update_pr(
                     "automated pr",
                     "--assignee",
                     "QuietHellsPage",
-                    "--reviewer",
-                    "QuietHellsPage",
                 ]
             )
 
-            if return_code == 0:
-                logger.info("Created new PR in target repository")
-            else:
+            if return_code == 1:
                 logger.error("Failed to create PR. Exit code: %s", return_code)
                 logger.error("stdout: %s", stdout)
                 logger.error("stderr: %s", stderr)
                 sys.exit(1)
+
+            logger.info("Created new PR in target repository")
+
         else:
             stdout, stderr, return_code = run_gh(
                 [
@@ -417,10 +395,7 @@ def create_or_update_pr(
         logger.info("No commits in branch %s - skipping PR creation", branch_name)
 
 
-# Huge funcs to avoid lint ignores in main
-
-
-def validate_and_process_inputs() -> Tuple[str, str, str, str, str]:
+def validate_and_process_inputs() -> tuple[str, ...]:
     """
     Validating input args and processing basic information for script work
     """
@@ -454,7 +429,7 @@ def prepare_target_repo(target_repo: str, branch_name: str, gh_token: str) -> No
 
 def get_pr_info(
     repo_name: str, pr_number: str, gh_token: str, target_repo: str
-) -> Tuple[str, List[str]]:
+) -> tuple[str, list[str]]:
     """
     Get info about changes in PR from source repo
     """
@@ -494,11 +469,11 @@ def run_sync(sync_config: SyncConfig) -> SyncResult:
 
     sync_mapping = get_sync_mapping(sync_config.json_content) if sync_config.json_content else []
 
-    sync_needed_files = []
+    sync_needed_files: list[tuple[str, ...]] = []
     for file in sync_config.changed_files:
-        if file == "autosync/test_files.json":
+        if file == TRACKED_JSON_PATH:
             continue
-            
+
         for source, target in sync_mapping:
             if source == file:
                 sync_needed_files.append((source, target))
@@ -506,17 +481,14 @@ def run_sync(sync_config: SyncConfig) -> SyncResult:
 
     if sync_needed_files:
         has_synced = sync_files_from_pr(
-            sync_config.target_repo,
-            "parent-repo",
-            sync_config.pr_branch,
-            sync_needed_files
+            sync_config.target_repo, "parent-repo", sync_config.pr_branch, sync_needed_files
         )
         has_changes = has_changes or has_synced
-    
+
     return SyncResult(
         has_changes=has_changes,
         files_to_sync_found=files_to_sync_found,
-        json_changed=sync_config.json_changed
+        json_changed=sync_config.json_changed,
     )
 
 
@@ -528,9 +500,7 @@ def main() -> None:
 
     prepare_target_repo(target_repo, branch_name, gh_token)
 
-    pr_branch, changed_files = get_pr_info(
-        repo_name, pr_number, gh_token, target_repo
-    )
+    pr_branch, changed_files = get_pr_info(repo_name, pr_number, gh_token, target_repo)
 
     json_content, json_changed = get_and_update_json_if_changed(
         target_repo, "parent-repo", pr_branch, changed_files
@@ -538,11 +508,10 @@ def main() -> None:
 
     sync_mapping = get_sync_mapping(json_content)
     has_files_to_sync = any(
-        file != "autosync/test_files.json" 
-        and any(source == file for source, _ in sync_mapping)
+        file != TRACKED_JSON_PATH and any(source == file for source, _ in sync_mapping)
         for file in changed_files
     )
-    
+
     if not has_files_to_sync and not json_changed:
         logger.info("No files to sync and JSON not changed")
         sys.exit(0)
@@ -553,8 +522,12 @@ def main() -> None:
 
     if sync_result.has_changes:
         commit_config = CommitConfig(
-            target_repo, branch_name, repo_name, pr_number, 
-            sync_result.json_changed, sync_result.files_to_sync_found
+            target_repo,
+            branch_name,
+            repo_name,
+            pr_number,
+            sync_result.json_changed,
+            sync_result.files_to_sync_found,
         )
 
         commit_and_push_changes(commit_config)

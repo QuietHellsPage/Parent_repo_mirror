@@ -27,14 +27,11 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
             PR_NUMBER=$(echo "${{ github.event.head_commit.message }}" | grep -oP 'Merge pull request #\K\d+')
-            ACTOR="${{ github.actor }}"
           else
             PR_NUMBER="${{ github.event.issue.number }}"
-            ACTOR="${{ github.actor }}"
           fi
           
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-          echo "actor=$ACTOR" >> $GITHUB_OUTPUT
 
       - name: Setup GitHub CLI
         run: |
@@ -42,7 +39,6 @@ jobs:
 
       - name: Sync repositories
         run: |
-          bash external_pr_files/create_external_pr.sh "${{ github.repository }}" "${{ steps.trigger-info.outputs.pr_number }}"
+          python external_pr_files/external_pr.py "${{ github.event.repository.name }}" "${{ steps.trigger-info.outputs.pr_number }}"
         env:
           GH_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
-          GITHUB_ACTOR: ${{ steps.trigger-info.outputs.actor }}
