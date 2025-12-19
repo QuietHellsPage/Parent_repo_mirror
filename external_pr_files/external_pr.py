@@ -406,7 +406,7 @@ def validate_and_process_inputs() -> tuple[str, ...]:
 
     repo_name = args.repo_name
     pr_number = args.pr_number
-    target_repo = "QuietHellsPage/Child_repo_mirror"
+    target_repo = "Child_repo_mirror"
     branch_name = f"auto-update-from-{repo_name}-pr-{pr_number}"
 
     gh_token = os.environ.get("GH_TOKEN")
