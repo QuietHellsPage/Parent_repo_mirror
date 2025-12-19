@@ -55,4 +55,9 @@
     "source": "lab_3_generate_by_ngrams/start.py",
     "target": "s.py"
   }
+  ,
+  {
+    "source": "123.txt",
+    "target": "123.txt"
+  }
 ]
