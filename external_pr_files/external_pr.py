@@ -530,6 +530,7 @@ def main() -> None:
             sync_result.files_to_sync_found,
         )
 
+
         commit_and_push_changes(commit_config)
         create_or_update_pr(target_repo, branch_name, repo_name, pr_number, target_repo)
     else:
