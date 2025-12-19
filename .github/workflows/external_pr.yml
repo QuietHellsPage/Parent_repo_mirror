@@ -39,7 +39,6 @@ jobs:
 
       - name: Sync repositories
         run: |
-          source venv/bin/activate
           export PYTHONPATH=$(pwd)
           python external_pr_files/external_pr.py "${{ github.event.repository.name }}" "${{ steps.trigger-info.outputs.pr_number }}"
         env:
