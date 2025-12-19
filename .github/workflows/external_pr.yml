@@ -49,6 +49,6 @@ jobs:
       - name: Sync repositories
         run: |
           export PYTHONPATH=$(pwd)
-          python external_pr_files/external_pr.py "${{ github.event.repository.name }}" "${{ steps.trigger-info.outputs.pr_number }}"
+          python external_pr_files/external_pr.py "${{ github.event.repository.full_name }}" "${{ steps.trigger-info.outputs.pr_number }}"
         env:
           GH_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
