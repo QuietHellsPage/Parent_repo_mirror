@@ -33,14 +33,8 @@ jobs:
           
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-
-      - name: Install dependencies
-        run: |
-          pip install -r requirements_qa.txt
+      - name: Setup FIPL Environment
+        uses: fipl-hse/setup-env-action@v0.12
 
       - name: Setup GitHub CLI
         run: |
@@ -48,6 +42,7 @@ jobs:
 
       - name: Sync repositories
         run: |
+          source venv/bin/activate
           export PYTHONPATH=$(pwd)
           python external_pr_files/external_pr.py "${{ github.event.repository.full_name }}" "${{ steps.trigger-info.outputs.pr_number }}"
         env:
