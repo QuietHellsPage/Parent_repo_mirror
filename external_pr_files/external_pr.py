@@ -498,6 +498,15 @@ def main() -> None:
     """
     repo_name, pr_number, target_repo, branch_name, gh_token = validate_and_process_inputs()
 
+    run_gh(
+        [
+            "auth",
+            "login",
+            "--with-token",
+            gh_token
+        ]
+    )
+
     prepare_target_repo(target_repo, branch_name, gh_token)
 
     pr_branch, changed_files = get_pr_info(repo_name, pr_number, gh_token, target_repo)
