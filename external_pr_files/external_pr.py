@@ -12,7 +12,7 @@ from typing import Any, cast, Optional
 
 from config.cli_unifier import _run_console_tool, handles_console_error
 from config.console_logging import get_child_logger
-from config.constants import TRACKED_JSON_PATH_OBJ
+from config.constants import TRACKED_JSON_PATH
 
 logger = get_child_logger(__file__)
 
@@ -215,10 +215,10 @@ def get_and_update_json_if_changed(
     Get json content from remote branch
     """
     json_content = None
-    json_changed = TRACKED_JSON_PATH_OBJ in changed_files
+    json_changed = TRACKED_JSON_PATH in changed_files
 
     stdout, _, return_code = run_git(
-        ["show", f"{remote_name}/{pr_branch}:{TRACKED_JSON_PATH_OBJ}"],
+        ["show", f"{remote_name}/{pr_branch}:{TRACKED_JSON_PATH}"],
         cwd=repo_path,
     )
 
@@ -226,17 +226,17 @@ def get_and_update_json_if_changed(
         json_content = json.loads(stdout)
 
         if json_changed:
-            json_path = Path(repo_path) / TRACKED_JSON_PATH_OBJ
+            json_path = Path(repo_path) / TRACKED_JSON_PATH
             json_path.parent.mkdir(parents=True, exist_ok=True)
 
             with open(json_path, "w", encoding="utf-8") as f:
                 f.write(stdout)
 
-            run_git(["add", TRACKED_JSON_PATH_OBJ], cwd=repo_path)
+            run_git(["add", TRACKED_JSON_PATH], cwd=repo_path)
     elif json_changed:
-        json_path = Path(repo_path) / TRACKED_JSON_PATH_OBJ
+        json_path = Path(repo_path) / TRACKED_JSON_PATH
         if json_path.exists():
-            run_git(["rm", TRACKED_JSON_PATH_OBJ], cwd=repo_path)
+            run_git(["rm", TRACKED_JSON_PATH], cwd=repo_path)
             json_content = {}
 
     return json_content, json_changed
@@ -471,7 +471,7 @@ def run_sync(sync_config: SyncConfig) -> SyncResult:
 
     sync_needed_files: list[tuple[str, ...]] = []
     for file in sync_config.changed_files:
-        if file == TRACKED_JSON_PATH_OBJ:
+        if file == TRACKED_JSON_PATH:
             continue
 
         for source, target in sync_mapping:
@@ -508,7 +508,7 @@ def main() -> None:
 
     sync_mapping = get_sync_mapping(json_content)
     has_files_to_sync = any(
-        file != TRACKED_JSON_PATH_OBJ and any(source == file for source, _ in sync_mapping)
+        file != TRACKED_JSON_PATH and any(source == file for source, _ in sync_mapping)
         for file in changed_files
     )
 
