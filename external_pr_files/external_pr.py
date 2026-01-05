@@ -498,14 +498,14 @@ def main() -> None:
     """
     repo_name, pr_number, target_repo, branch_name, gh_token = validate_and_process_inputs()
 
-    run_gh(
-        [
-            "auth",
-            "login",
-            "--with-token",
-            gh_token
-        ]
-    )
+    # run_gh(
+    #     [
+    #         "auth",
+    #         "login",
+    #         "--with-token",
+    #         gh_token
+    #     ]
+    # )
 
     prepare_target_repo(target_repo, branch_name, gh_token)
 
