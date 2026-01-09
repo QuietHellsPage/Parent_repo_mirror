@@ -5,6 +5,17 @@ on:
     branches: [ main ]
   issue_comment:
     types: [ created ]
+  workflow_dispatch:  # Добавлено для ручного запуска
+    inputs:
+      pr_number:
+        description: 'Номер PR/issue для синхронизации'
+        required: true
+        type: string
+      skip_checks:
+        description: 'Пропустить проверки?'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   CreateExternalPR:
@@ -13,7 +24,8 @@ jobs:
        github.event.issue.state == 'open' &&
        contains(github.event.comment.body, '[SYNC_TO_CHILD]')) ||
       (github.event_name == 'push' && 
-       startsWith(github.event.head_commit.message, 'Merge pull request'))
+       startsWith(github.event.head_commit.message, 'Merge pull request')) ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     steps:
@@ -27,23 +39,32 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
             PR_NUMBER=$(echo "${{ github.event.head_commit.message }}" | grep -oP 'Merge pull request #\K\d+')
-          else
+          elif [ "${{ github.event_name }}" == "issue_comment" ]; then
             PR_NUMBER="${{ github.event.issue.number }}"
+          else
+            # Для workflow_dispatch используем введенный номер
+            PR_NUMBER="${{ github.event.inputs.pr_number }}"
           fi
           
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "skip_checks=${{ github.event.inputs.skip_checks || 'false' }}" >> $GITHUB_OUTPUT
 
       - name: Setup FIPL Environment
         uses: fipl-hse/setup-env-action@v0.12
 
       - name: Setup GitHub CLI
         run: |
-          bash external_pr_files/setup_cli.sh
+          bash admin_utils/external_pr_files/setup_cli.sh
 
       - name: Sync repositories
         run: |
           source venv/bin/activate
           export PYTHONPATH=$(pwd)
-          python external_pr_files/external_pr.py "${{ github.event.repository.full_name }}" "${{ steps.trigger-info.outputs.pr_number }}"
+          # Передаем дополнительные параметры если нужно
+          python admin_utils/external_pr_files/external_pr.py \
+            "${{ github.event.repository.full_name }}" \
+            "${{ steps.trigger-info.outputs.pr_number }}" \
+            "${{ steps.trigger-info.outputs.skip_checks }}"
         env:
           GH_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
+          
