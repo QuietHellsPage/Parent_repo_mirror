@@ -60,6 +60,13 @@ class SyncResult:
 def run_git(args: list[str], **kwargs: str) -> tuple[str, str, int]:
     """
     Run git command via imported function
+
+    Args:
+        args (list[str]): Arguments for git command.
+        kwargs (str): Keyword arguments.
+
+    Returns:
+        tuple[str, str, int]: Result of git command.
     """
     return _run_console_tool("git", args, **kwargs)
 
@@ -68,6 +75,12 @@ def run_git(args: list[str], **kwargs: str) -> tuple[str, str, int]:
 def run_gh(args: list[str]) -> tuple[str, str, int]:
     """
     Run gh command via imported function
+
+    Args:
+        args (list[str]): Arguments for gh command.
+
+    Returns:
+        tuple[str, str, int]: Result of gh command.
     """
     return _run_console_tool("gh", args)
 
@@ -76,6 +89,13 @@ def run_gh(args: list[str]) -> tuple[str, str, int]:
 def run_mkdir(args: list[str], **kwargs: str) -> tuple[str, str, int]:
     """
     Create directory via imported function
+
+    Args:
+        args (list[str]): Arguments for mkdir command.
+        kwargs (str): Keyword arguments.
+
+    Returns:
+        tuple[str, str, int]: Result of mkdir command.
     """
     return _run_console_tool("mkdir", args, **kwargs)
 
@@ -84,6 +104,12 @@ def run_mkdir(args: list[str], **kwargs: str) -> tuple[str, str, int]:
 def run_rm(args: list[str]) -> tuple[str, str, int]:
     """
     Remove anything via imported function
+
+    Args:
+        args (list[str]): Arguments for rm command.
+
+    Returns:
+        tuple[str, str, int]: Result of rm command.
     """
     return _run_console_tool("rm", args)
 
@@ -92,6 +118,12 @@ def run_rm(args: list[str]) -> tuple[str, str, int]:
 def run_sleep(args: list[str]) -> tuple[str, str, int]:
     """
     Run sleep command via imported function
+
+    Args:
+        args (list[str]): Arguments for sleep command.
+
+    Returns:
+        tuple[str, str, int]: Result of sleep command.
     """
     return _run_console_tool("sleep", args)
 
@@ -99,6 +131,13 @@ def run_sleep(args: list[str]) -> tuple[str, str, int]:
 def get_pr_data(repo_name: str, pr_number: str) -> dict[str, Any]:
     """
     Get PR data via gh
+
+    Args:
+        repo_name (str): Name of source repo.
+        pr_number (str): Number of needed PR in source repo.
+
+    Returns:
+        dict[str, Any]: PR data.
     """
     stdout, stderr, return_code = run_gh(
         [
@@ -123,6 +162,13 @@ def get_pr_data(repo_name: str, pr_number: str) -> dict[str, Any]:
 def check_branch_exists(branch_name: str, repo_path: str = ".") -> bool:
     """
     Check if branch in remote repo exists
+
+    Args:
+        branch_name (str): Name of needed branch.
+        repo_path (str, optional): Path to repo. Defaults to ".".
+
+    Returns:
+        bool: True if needed branch exists in remote repo.
     """
     _, _, return_code = run_git(
         ["show-ref", "--quiet", f"refs/remotes/origin/{branch_name}"], cwd=repo_path
@@ -133,6 +179,10 @@ def check_branch_exists(branch_name: str, repo_path: str = ".") -> bool:
 def clone_repo(target_repo: str, gh_token: str) -> None:
     """
     Clone target repo
+
+    Args:
+        target_repo (str): Name of target repo.
+        gh_token (str): Token to process operations.
     """
     target_path = Path(target_repo)
     if target_path.exists():
@@ -144,6 +194,9 @@ def clone_repo(target_repo: str, gh_token: str) -> None:
 def setup_git_config(repo_path: str) -> None:
     """
     Setup config
+
+    Args:
+        repo_path (str): Path to repo.
     """
     run_git(["config", "user.name", "github-actions[bot]"], cwd=repo_path)
     run_git(
@@ -155,6 +208,9 @@ def setup_git_config(repo_path: str) -> None:
 def check_and_create_label(target_repo: str) -> None:
     """
     Check if label exists or create it
+
+    Args:
+        target_repo (str): Path to repo.
     """
     stdout, stderr, return_code = run_gh(
         ["label", "list", "--repo", f"QuietHellsPage/{target_repo}", "--json", "name"]
@@ -187,6 +243,10 @@ def check_and_create_label(target_repo: str) -> None:
 def checkout_or_create_branch(branch_name: str, repo_path: str) -> None:
     """
     Checkout on existing branch or create it
+
+    Args:
+        branch_name (str): Name of needed branch.
+        repo_path (str): Path to repo.
     """
     if check_branch_exists(branch_name, repo_path):
         run_git(["checkout", branch_name], cwd=repo_path)
@@ -197,7 +257,12 @@ def checkout_or_create_branch(branch_name: str, repo_path: str) -> None:
 
 def add_remote_and_fetch(remote_name: str, repo_url: str, repo_path: str) -> None:
     """
-    Add remote and fetch
+    Add remote and fetch.
+
+    Args:
+        remote_name (str): Name of remote repo.
+        repo_url (str): Link to remote repo.
+        repo_path (str): Path to remote repo.
     """
     stdout, _, _ = run_git(["remote"], cwd=repo_path)
     remotes = stdout.split()
@@ -213,6 +278,15 @@ def get_and_update_json_if_changed(
 ) -> tuple[Optional[dict], bool]:
     """
     Get json content from remote branch
+
+    Args:
+        repo_path (str): Path to repo.
+        remote_name (str): Remote name.
+        pr_branch (str): Name of needed branch.
+        changed_files (list[str]): Paths to changed files.
+
+    Returns:
+        tuple[Optional[dict], bool]: JSON content from remote branch.
     """
     json_content = None
     json_changed = TRACKED_JSON_PATH in changed_files
@@ -245,6 +319,12 @@ def get_and_update_json_if_changed(
 def get_sync_mapping(json_content: Optional[dict]) -> list[tuple[str, ...]]:
     """
     Extract sync mapping from JSON.
+
+    Args:
+        json_content (Optional[dict]): Content of JSON file.
+
+    Returns:
+        list[tuple[str, ...]]: Mapping of source/target files from JSON.
     """
     sync_mapping: list[tuple[str, ...]] = []
 
@@ -264,6 +344,15 @@ def sync_files_from_pr(
 ) -> bool:
     """
     Sync files from PR into target repo
+
+    Args:
+        repo_path (str): Path to repo.
+        remote_name (str): Remote name.
+        pr_branch (str): Branch of needed PR.
+        sync_mapping (list[tuple[str, ...]]): Content of JSON file.
+
+    Returns:
+        bool: Mapping of source/target files from JSON.
     """
     has_changes = False
 
@@ -300,6 +389,9 @@ def sync_files_from_pr(
 def commit_and_push_changes(commit_config: CommitConfig) -> None:
     """
     Commit and push changes
+
+    Args:
+        commit_config (CommitConfig): Schema of Commit.
     """
     if commit_config.json_changed and not commit_config.files_to_sync_found:
         commit_msg = (
@@ -317,6 +409,13 @@ def create_or_update_pr(
 ) -> None:
     """
     Create or update PR in target repo
+
+    Args:
+        target_repo (str): Name of source repo.
+        branch_name (str): Name of needed branch.
+        repo_name (str): Name of target repo
+        pr_number (str): Number of source PR.
+        repo_path (str): Path to repo.
     """
     stdout, stderr, return_code = run_gh(
         [
@@ -398,6 +497,9 @@ def create_or_update_pr(
 def validate_and_process_inputs() -> tuple[str, ...]:
     """
     Validating input args and processing basic information for script work
+
+    Returns:
+        tuple[str, ...]: Needed data from source repo
     """
     parser = argparse.ArgumentParser(description="Process repo name and PR number")
     parser.add_argument("repo_name", help="Name of source repo")
@@ -420,6 +522,11 @@ def validate_and_process_inputs() -> tuple[str, ...]:
 def prepare_target_repo(target_repo: str, branch_name: str, gh_token: str) -> None:
     """
     Prepare target repo for PR creation
+
+    Args:
+        target_repo (str): Name of target repo.
+        branch_name (str): Name of branch in target repo.
+        gh_token (str): Token to process operations.
     """
     clone_repo(target_repo, gh_token)
     setup_git_config(target_repo)
@@ -432,6 +539,15 @@ def get_pr_info(
 ) -> tuple[str, list[str]]:
     """
     Get info about changes in PR from source repo
+
+    Args:
+        repo_name (str): Name of source repo.
+        pr_number (str): Name of branch in source repo.
+        gh_token (str): Token to process operations.
+        target_repo (str): Name of target repo.
+
+    Returns:
+        tuple[str, list[str]]: Name of needed branch and changed files.
     """
     pr_data = get_pr_data(repo_name, pr_number)
 
@@ -463,6 +579,12 @@ def get_pr_info(
 def run_sync(sync_config: SyncConfig) -> SyncResult:
     """
     Run final synchronization
+
+    Args:
+        sync_config (SyncConfig): Schema of Sync data.
+
+    Returns:
+        SyncResult: Result of sync.
     """
     has_changes = sync_config.json_changed
     files_to_sync_found = False
@@ -498,15 +620,6 @@ def main() -> None:
     """
     repo_name, pr_number, target_repo, branch_name, gh_token = validate_and_process_inputs()
 
-    run_gh(
-        [
-            "auth",
-            "login",
-            "--with-token",
-            gh_token
-        ]
-    )
-
     prepare_target_repo(target_repo, branch_name, gh_token)
 
     pr_branch, changed_files = get_pr_info(repo_name, pr_number, gh_token, target_repo)
@@ -538,7 +651,6 @@ def main() -> None:
             sync_result.json_changed,
             sync_result.files_to_sync_found,
         )
-
 
         commit_and_push_changes(commit_config)
         create_or_update_pr(target_repo, branch_name, repo_name, pr_number, target_repo)
