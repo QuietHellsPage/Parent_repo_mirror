@@ -11,10 +11,10 @@ from pathlib import Path
 from typing import Any, cast, Optional
 
 from config.cli_unifier import _run_console_tool, handles_console_error
-from config.console_logging import get_child_logger
+# from config.console_logging import get_child_logger
 from config.constants import TRACKED_JSON_PATH
 
-logger = get_child_logger(__file__)
+# logger = get_child_logger(__file__)
 
 
 @dataclass(slots=True)
@@ -152,7 +152,7 @@ def get_pr_data(repo_name: str, pr_number: str) -> dict[str, Any]:
     )
 
     if return_code != 0 or not stdout:
-        logger.warning("Failed to get PR data: %s", stderr)
+        # logger.warning("Failed to get PR data: %s", stderr)
         return {}
 
     data = json.loads(stdout)
@@ -216,9 +216,9 @@ def check_and_create_label(target_repo: str) -> None:
         ["label", "list", "--repo", f"QuietHellsPage/{target_repo}", "--json", "name"]
     )
 
-    if return_code != 0:
-        logger.warning("Failed to get labels: %s", stderr)
-        return
+    # if return_code != 0:
+    #     # logger.warning("Failed to get labels: %s", stderr)
+    #     return
 
     labels = json.loads(stdout) if stdout else []
     label_exists = any(label.get("name") == "automated pr" for label in labels)
@@ -375,13 +375,13 @@ def sync_files_from_pr(
 
             run_git(["add", target_path], cwd=repo_path)
             has_changes = True
-        else:
-            logger.warning(
-                "Couldn't read file %s from %s/%s",
-                source_path,
-                remote_name,
-                pr_branch,
-            )
+        # else:
+        #     logger.warning(
+        #         "Couldn't read file %s from %s/%s",
+        #         source_path,
+        #         remote_name,
+        #         pr_branch,
+        #     )
 
     return has_changes
 
@@ -468,12 +468,12 @@ def create_or_update_pr(
             )
 
             if return_code == 1:
-                logger.error("Failed to create PR. Exit code: %s", return_code)
-                logger.error("stdout: %s", stdout)
-                logger.error("stderr: %s", stderr)
+                # logger.error("Failed to create PR. Exit code: %s", return_code)
+                # logger.error("stdout: %s", stdout)
+                # logger.error("stderr: %s", stderr)
                 sys.exit(1)
 
-            logger.info("Created new PR in target repository")
+            # logger.info("Created new PR in target repository")
 
         else:
             stdout, stderr, return_code = run_gh(
@@ -488,10 +488,10 @@ def create_or_update_pr(
                 ]
             )
 
-            if return_code != 0:
-                logger.warning("Failed to update PR %s", target_pr_number)
-    else:
-        logger.info("No commits in branch %s - skipping PR creation", branch_name)
+            # if return_code != 0:
+            #     logger.warning("Failed to update PR %s", target_pr_number)
+    # else:
+    #     logger.info("No commits in branch %s - skipping PR creation", branch_name)
 
 
 def validate_and_process_inputs() -> tuple[str, ...]:
@@ -513,7 +513,7 @@ def validate_and_process_inputs() -> tuple[str, ...]:
 
     gh_token = os.environ.get("GH_TOKEN")
     if not gh_token:
-        logger.error("GH_TOKEN environment variable is not set")
+        # logger.error("GH_TOKEN environment variable is not set")
         sys.exit(1)
 
     return repo_name, pr_number, target_repo, branch_name, gh_token
@@ -552,12 +552,12 @@ def get_pr_info(
     pr_data = get_pr_data(repo_name, pr_number)
 
     if not pr_data:
-        logger.error("PR data in source repo not found")
+        # logger.error("PR data in source repo not found")
         sys.exit(0)
 
     pr_branch = pr_data.get("headRefName", "")
     if not pr_branch:
-        logger.error("Could not get PR branch information")
+        # logger.error("Could not get PR branch information")
         sys.exit(0)
 
     changed_files = []
@@ -566,7 +566,7 @@ def get_pr_info(
         changed_files = [f["path"] for f in pr_data["files"]]
 
     if not changed_files:
-        logger.info("No changes found in PR %s", pr_number)
+        # logger.info("No changes found in PR %s", pr_number)
         sys.exit(0)
 
     add_remote_and_fetch(
@@ -635,7 +635,7 @@ def main() -> None:
     )
 
     if not has_files_to_sync and not json_changed:
-        logger.info("No files to sync and JSON not changed")
+        # logger.info("No files to sync and JSON not changed")
         sys.exit(0)
 
     sync_result = run_sync(
@@ -655,7 +655,7 @@ def main() -> None:
         commit_and_push_changes(commit_config)
         create_or_update_pr(target_repo, branch_name, repo_name, pr_number, target_repo)
     else:
-        logger.info("No changes to commit")
+        # logger.info("No changes to commit")
         sys.exit(0)
 
 
