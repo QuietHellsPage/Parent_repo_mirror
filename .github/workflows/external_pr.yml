@@ -44,6 +44,6 @@ jobs:
         run: |
           source venv/bin/activate
           export PYTHONPATH=$(pwd)
-          python admin_utils/external_pr_files/create_external_pr.py "${{ github.event.repository.full_name }}" "${{ steps.trigger-info.outputs.pr_number }}"
+          python admin_utils/external_pr_files/external_pr.py "${{ github.event.repository.full_name }}" "${{ steps.trigger-info.outputs.pr_number }}"
         env:
           GH_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
