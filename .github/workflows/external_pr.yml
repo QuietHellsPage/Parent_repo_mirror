@@ -23,7 +23,7 @@ jobs:
           ref: ${{ github.event.pull_request.base.ref }}
 
       - name: Debug base
-        if: github.event == 'pull_request'
+        if: github.event_name == 'pull_request'
         run: |
           echo "Target branch (base.ref): ${{ github.event.pull_request.base.ref }}"
           echo "Target branch (head.ref): ${{ github.event.pull_request.head.ref }}"
