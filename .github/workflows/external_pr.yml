@@ -37,8 +37,7 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
             PR_NUMBER=$(gh api /repos/${{ github.repository }}/commits/${{ github.sha }}/pulls \
-              --jq '.[0].number' \
-              --silent)
+              --jq '.[0].number')
           else
             PR_NUMBER="${{ github.event.issue.number }}"
           fi
