@@ -58,5 +58,9 @@
   {
     "source": "123.txt",
     "target": "123.txt"
+  },
+  {
+    "source": "lab_1_keywords_tfidf/time-decorator.py",
+    "target": "lab_1_keywords_tfidf/time-decorator.py"
   }
 ]
