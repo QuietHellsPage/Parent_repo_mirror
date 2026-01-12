@@ -8,14 +8,13 @@ on:
 
 jobs:
   CreateExternalPR:
-    if: |
-      (github.event_name == 'issue_comment' &&
-       github.event.issue.state == 'open' &&
-       contains(github.event.comment.body, '[SYNC_TO_CHILD]')) ||
-      (github.event_name == 'push' && 
-       contains(github.event.head_commit.message, '[DOCS]'))
+    # if: |
+    #   (github.event_name == 'issue_comment' &&
+    #    github.event.issue.state == 'open' &&
+    #    contains(github.event.comment.body, '[SYNC_TO_CHILD]')) ||
+    #   (github.event_name == 'push' && 
+    #    contains(github.event.head_commit.message, '[DOCS]'))
     runs-on: ubuntu-latest
-
 
     steps:
       - name: Checkout current branch (for workflow files)
@@ -23,18 +22,20 @@ jobs:
         with:
           ref: ${{ github.head_ref || github.ref }}
 
+      - name: See number
+        run: |
+          echo "::set-env name=PR_NUMBER::$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")"
+
       - name: Determine PR number based on trigger
         id: trigger-info
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
-            PR_NUMBER=$(echo "${{ github.event.head_commit.message }}" | grep -oP 'Merge pull request #\K\d+' || echo "")
-            
-            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-            echo "Extracted PR number: $PR_NUMBER"
+            PR_NUMBER=$(echo "${{ github.event }}" | grep -oP 'Merge pull request #\K\d+')
           else
             PR_NUMBER="${{ github.event.issue.number }}"
-            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
           fi
+          
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
 
       - name: Setup FIPL Environment
         uses: fipl-hse/setup-env-action@v0.12
