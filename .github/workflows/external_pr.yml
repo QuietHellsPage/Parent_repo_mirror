@@ -20,14 +20,7 @@ jobs:
       - name: Checkout current branch (for workflow files)
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.base.ref }}
-
-      - name: Debug base
-        if: github.event_name == 'pull_request'
-        run: |
-          echo "Target branch (base.ref): ${{ github.event.pull_request.base.ref }}"
-          echo "Target branch (head.ref): ${{ github.event.pull_request.head.ref }}"
-          echo "Target branch: ${{ github.ref }}"
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref }}
 
       - name: Determine PR number based on trigger
         id: trigger-info
