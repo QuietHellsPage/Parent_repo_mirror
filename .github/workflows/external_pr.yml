@@ -12,7 +12,7 @@ jobs:
       (github.event_name == 'issue_comment' &&
        github.event.issue.state == 'open' &&
        contains(github.event.comment.body, '[SYNC_TO_CHILD]')) ||
-      (github.event_name == 'push' &&
+      (github.event_name == 'push' && 
        contains(github.event.head_commit.message, '[DOCS]'))
     runs-on: ubuntu-latest
 
@@ -26,15 +26,17 @@ jobs:
         id: trigger-info
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
-            PR_NUMBER=$(echo "${{ github.event.head_commit.message }}" | grep -oP 'Merge pull request #\K\d+')
+            PR_NUMBER=$(echo "${{ github.event.head_commit.message }}" | grep -oP 'Merge pull request #\K\d+' || echo "")
+            
+            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+            echo "Extracted PR number: $PR_NUMBER"
           else
             PR_NUMBER="${{ github.event.issue.number }}"
+            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
           fi
-          
-          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
 
       - name: Setup FIPL Environment
-        uses: fipl-hse/setup-env-action@v0.12
+        uses: fipl-hse/setup-env-action@v0.11
 
       - name: Setup GitHub CLI
         run: |
