@@ -1,3 +1,4 @@
+
 name: "Create PR in external repo using GH CLI"
 
 on:
@@ -22,23 +23,27 @@ jobs:
         with:
           ref: ${{ github.head_ref || github.ref }}
 
-      - name: Determine PR number based on trigger
-        id: trigger-info
-        run: |
-          if [ "${{ github.event_name }}" == "push" ]; then
-            PR_NUMBER=$(echo "${{ github.event }}" | grep -oP 'Merge pull request #\K\d+')
-          else
-            PR_NUMBER="${{ github.event.issue.number }}"
-          fi
-          
-          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-
       - name: Setup FIPL Environment
         uses: fipl-hse/setup-env-action@v0.12
 
       - name: Setup GitHub CLI
         run: |
           bash admin_utils/external_pr_files/setup_cli.sh
+
+      - name: Determine PR number based on trigger
+        id: trigger-info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" == "push" ]; then
+            PR_NUMBER=$(gh api /repos/${{ github.repository }}/commits/${{ github.sha }}/pulls \
+              --jq '.[0].number' \
+              --silent)
+          else
+            PR_NUMBER="${{ github.event.issue.number }}"
+          fi
+          
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
 
       - name: Sync repositories
         run: |
