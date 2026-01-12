@@ -1,8 +1,8 @@
 name: "Create PR in external repo using GH CLI"
 
 on:
-  pull_request:
-    types: [closed]
+  pull_request_target:
+    types: [ closed ]
   issue_comment:
     types: [ created ]
 
@@ -12,7 +12,7 @@ jobs:
       (github.event_name == 'issue_comment' &&
        github.event.issue.state == 'open' &&
        contains(github.event.comment.body, '[SYNC_TO_CHILD]')) ||
-      (github.event_name == 'pull_request' && 
+      (github.event_name == 'pull_request_target' && 
        github.event.pull_request.merged == true)
     runs-on: ubuntu-latest
 
@@ -20,12 +20,12 @@ jobs:
       - name: Checkout current branch (for workflow files)
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || 'main' }}
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.base.ref || 'main' }}
 
       - name: Determine PR number based on trigger
         id: trigger-info
         run: |
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
+          if [ "${{ github.event_name }}" == "pull_request_target" ]; then
             PR_NUMBER="${{ github.event.pull_request.number }}"
           else
             PR_NUMBER="${{ github.event.issue.number }}"
