@@ -60,7 +60,7 @@
     "target": "123.txt"
   },
   {
-    "source": "lab_3_generate_by_ngrams/photo-1673212815998-a6c519b96aae.jpeg",
-    "target": "lab_3_generate_by_ngrams/photo-1673212815998-a6c519b96aae.jpeg"
+    "source": "lab_1_keywords_tfidf/time-decorator.py",
+    "target": "lab_1_keywords_tfidf/time-decorator.py"
   }
 ]
