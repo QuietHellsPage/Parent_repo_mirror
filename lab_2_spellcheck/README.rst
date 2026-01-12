@@ -20,7 +20,7 @@
 1. Текст первой главы «Мастера и Маргариты» на русском языке
    (``assets/Master_and_Margarita_chapter1.txt``)
 2. Список стоп-слов (``assets/stop_words.txt``)
-3. Предложения со словами с ошибками
+3. Предложения со словами с
    (``assets/incorrect_sentence_n.txt``)
 
 
