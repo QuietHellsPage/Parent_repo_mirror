@@ -117,7 +117,7 @@ collections, itertools, а также сторонние модули.**
 
 .. important:: Выполнение Шагов 1-3 соответствует 4 баллам.
 
-Реализуйте функцию :py:func:`lab_1_keywords_tfidf.main.remove_stop_words`.
+Реализуйте :py:func:`lab_1_keywords_tfidf.main.remove_stop_words`.
 
 Функция принимает на вход список токенов и список стоп-слов.
 Возвращаемым значением должен быть список токенов без стоп-слов.
