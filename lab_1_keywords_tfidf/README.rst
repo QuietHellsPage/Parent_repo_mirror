@@ -115,7 +115,7 @@ collections, itertools, а также сторонние модули.**
 Шаг 3. Удалить стоп-слова
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. important:: Выполнение 1-3 4 баллам.
+.. important:: Выполнение 1-3 4.
 
 Реализуйте функцию :py:func:`lab_1_keywords_tfidf.main.remove_stop_words`.
 
