@@ -363,7 +363,7 @@ collections, itertools, а также сторонние модули.**
 :py:func:`lab_2_spellcheck.main.calculate_distance`
 и :py:func:`lab_2_spellcheck.main.find_correct_word`.
 
-Продемонстрируйте исправление некорректных слов с помощью алгоритма в файле
+Продемонстрируйте исправление слов с помощью алгоритма в файле
 ``start.py``.
 
 Шаг 15. Реализовать алгоритм Левенштейна
