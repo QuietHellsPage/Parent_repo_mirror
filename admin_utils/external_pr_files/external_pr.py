@@ -10,18 +10,11 @@ from pathlib import Path
 from typing import Any, cast, Optional
 
 from logging518.config import fileConfig
+from tap import Tap
+
 from config.cli_unifier import _run_console_tool, handles_console_error
 from config.console_logging import get_child_logger
-
-
 from config.constants import TRACKED_JSON_PATH
-
-
-import os
-from pathlib import Path
-from typing import Optional
-
-from tap import Tap
 
 logger = get_child_logger(__file__)
 
