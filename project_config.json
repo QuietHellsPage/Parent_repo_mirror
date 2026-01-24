@@ -9,6 +9,10 @@
             "target": "source/docs/labs_2025/labs/lab_1_keywords_tfidf/lab_1_keywords_tfidf.api.rst"
         },
         {
+            "source": "testt.txt",
+            "target": "testt.txt"
+        },
+        {
             "source": "lab_1_keywords_tfidf/README.rst",
             "target": "lab_1_keywords_tfidf/README.rst"
         },
