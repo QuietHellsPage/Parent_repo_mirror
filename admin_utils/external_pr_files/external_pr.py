@@ -14,7 +14,7 @@ from tap import Tap
 
 from config.cli_unifier import _run_console_tool, handles_console_error
 from config.console_logging import get_child_logger
-from config.constants import TRACKED_JSON_PATH
+from config.constants import SYNC_CONFIG_PATH
 
 logger = get_child_logger(__file__)
 
@@ -309,10 +309,10 @@ def get_and_update_json_if_changed(
         tuple[Optional[dict], bool]: JSON content from remote branch.
     """
     json_content = None
-    json_changed = TRACKED_JSON_PATH in changed_files
+    json_changed = SYNC_CONFIG_PATH in changed_files
 
     stdout, _, return_code = run_git(
-        ["show", f"{remote_name}/{pr_branch}:{TRACKED_JSON_PATH}"],
+        ["show", f"{remote_name}/{pr_branch}:{SYNC_CONFIG_PATH}"],
         cwd=repo_path,
     )
 
@@ -320,17 +320,17 @@ def get_and_update_json_if_changed(
         json_content = json.loads(stdout)
 
         if json_changed:
-            json_path = Path(repo_path) / TRACKED_JSON_PATH
+            json_path = Path(repo_path) / SYNC_CONFIG_PATH
             json_path.parent.mkdir(parents=True, exist_ok=True)
 
             with open(json_path, "w", encoding="utf-8") as f:
                 f.write(stdout)
 
-            run_git(["add", TRACKED_JSON_PATH], cwd=repo_path)
+            run_git(["add", SYNC_CONFIG_PATH], cwd=repo_path)
     elif json_changed:
-        json_path = Path(repo_path) / TRACKED_JSON_PATH
+        json_path = Path(repo_path) / SYNC_CONFIG_PATH
         if json_path.exists():
-            run_git(["rm", TRACKED_JSON_PATH], cwd=repo_path)
+            run_git(["rm", SYNC_CONFIG_PATH], cwd=repo_path)
             json_content = {}
 
     return json_content, json_changed
@@ -350,10 +350,10 @@ def get_sync_mapping(json_content: Optional[dict]) -> list[tuple[str, ...]]:
 
     if not json_content:
         return []
-
-    for item in json_content:
-        source = item.get("source")
-        target = item.get("target")
+    pairs = json_content.get("tracked_sync_files")
+    for pair in pairs:
+        source = pair.get("source")
+        target = pair.get("target")
         if source and target:
             sync_mapping.append((source, target))
     return sync_mapping
@@ -614,7 +614,7 @@ def run_sync(sync_config: SyncConfig) -> SyncResult:
 
     sync_needed_files: list[tuple[str, ...]] = []
     for file in sync_config.changed_files:
-        if file == TRACKED_JSON_PATH:
+        if file == SYNC_CONFIG_PATH:
             continue
 
         for source, target in sync_mapping:
@@ -651,7 +651,7 @@ def main() -> None:
 
     sync_mapping = get_sync_mapping(json_content)
     has_files_to_sync = any(
-        file != TRACKED_JSON_PATH and any(source == file for source, _ in sync_mapping)
+        file != SYNC_CONFIG_PATH and any(source == file for source, _ in sync_mapping)
         for file in changed_files
     )
 
