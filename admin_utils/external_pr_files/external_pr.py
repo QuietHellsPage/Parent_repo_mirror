@@ -151,13 +151,6 @@ def run_sleep(args: list[str]) -> tuple[str, str, int]:
 def get_pr_data(repo_name: str, pr_number: str) -> dict[str, Any]:
     """
     Get PR data via gh
-
-    Args:
-        repo_name (str): Name of source repo.
-        pr_number (str): Number of needed PR in source repo.
-
-    Returns:
-        dict[str, Any]: PR data.
     """
     stdout, stderr, return_code = run_gh(
         [
@@ -167,7 +160,7 @@ def get_pr_data(repo_name: str, pr_number: str) -> dict[str, Any]:
             "--repo",
             repo_name,
             "--json",
-            "headRefName,headRepository,headRepositoryOwner,files",
+            "headRefName,headRepository,headRepositoryOwner,files,headRefOid",
         ]
     )
 
@@ -294,25 +287,16 @@ def add_remote_and_fetch(remote_name: str, repo_url: str, repo_path: str) -> Non
 
 
 def get_and_update_json_if_changed(
-    repo_path: str, remote_name: str, pr_branch: str, changed_files: list[str]
+    repo_path: str, ref: str, changed_files: list[str]
 ) -> tuple[Optional[dict], bool]:
     """
-    Get json content from remote branch
-
-    Args:
-        repo_path (str): Path to repo.
-        remote_name (str): Remote name.
-        pr_branch (str): Name of needed branch.
-        changed_files (list[str]): Paths to changed files.
-
-    Returns:
-        tuple[Optional[dict], bool]: JSON content from remote branch.
+    Get json content using ref (branch name or SHA)
     """
     json_content = None
     json_changed = SYNC_CONFIG_PATH in changed_files
 
     stdout, _, return_code = run_git(
-        ["show", f"{remote_name}/{pr_branch}:{SYNC_CONFIG_PATH}"],
+        ["show", f"{ref}:{SYNC_CONFIG_PATH}"],
         cwd=repo_path,
     )
 
@@ -360,19 +344,10 @@ def get_sync_mapping(json_content: Optional[dict]) -> list[tuple[str, ...]]:
 
 
 def sync_files_from_pr(
-    repo_path: str, remote_name: str, pr_branch: str, sync_mapping: list[tuple[str, ...]]
+    repo_path: str, ref: str, sync_mapping: list[tuple[str, ...]]
 ) -> bool:
     """
-    Sync files from PR into target repo
-
-    Args:
-        repo_path (str): Path to repo.
-        remote_name (str): Remote name.
-        pr_branch (str): Branch of needed PR.
-        sync_mapping (list[tuple[str, ...]]): Content of JSON file.
-
-    Returns:
-        bool: Mapping of source/target files from JSON.
+    Sync files from PR using ref (branch name or SHA)
     """
     has_changes = False
 
@@ -382,7 +357,7 @@ def sync_files_from_pr(
             run_mkdir(["-p", str(target_dir)], cwd=repo_path)
 
         stdout, _, return_code = run_git(
-            ["show", f"{remote_name}/{pr_branch}:{source_path}"],
+            ["show", f"{ref}:{source_path}"],
             cwd=repo_path,
         )
 
@@ -397,10 +372,9 @@ def sync_files_from_pr(
             has_changes = True
         else:
             logger.warning(
-                "Couldn't read file %s from %s/%s",
+                "Couldn't read file %s from %s",
                 source_path,
-                remote_name,
-                pr_branch,
+                ref,
             )
 
     return has_changes
@@ -557,18 +531,9 @@ def prepare_target_repo(target_repo: str, branch_name: str, gh_token: str) -> No
 
 def get_pr_info(
     repo_name: str, pr_number: str, gh_token: str, target_repo: str
-) -> tuple[str, list[str]]:
+) -> tuple[str, list[str], str]:
     """
     Get info about changes in PR from source repo
-
-    Args:
-        repo_name (str): Name of source repo.
-        pr_number (str): Name of branch in source repo.
-        gh_token (str): Token to process operations.
-        target_repo (str): Name of target repo.
-
-    Returns:
-        tuple[str, list[str]]: Name of needed branch and changed files.
     """
     pr_data = get_pr_data(repo_name, pr_number)
 
@@ -577,8 +542,10 @@ def get_pr_info(
         sys.exit(0)
 
     pr_branch = pr_data.get("headRefName", "")
-    if not pr_branch:
-        logger.error("Could not get PR branch information")
+    head_sha = pr_data.get("headRefOid", "")
+    
+    if not pr_branch or not head_sha:
+        logger.error("Could not get PR branch or SHA information")
         sys.exit(0)
 
     changed_files = []
@@ -594,7 +561,7 @@ def get_pr_info(
         "parent-repo", f"https://{gh_token}@github.com/{repo_name}.git", target_repo
     )
 
-    return pr_branch, changed_files
+    return pr_branch, changed_files, head_sha
 
 
 def run_sync(sync_config: SyncConfig) -> SyncResult:
@@ -643,10 +610,16 @@ def main() -> None:
 
     prepare_target_repo(target_repo, branch_name, gh_token)
 
-    pr_branch, changed_files = get_pr_info(repo_name, pr_number, gh_token, target_repo)
+    pr_branch, changed_files, head_sha = get_pr_info(repo_name, pr_number, gh_token, target_repo)
+
+    if check_branch_exists(pr_branch, target_repo):
+        ref = f"parent-repo/{pr_branch}"
+    else:
+        ref = head_sha
+        logger.info("Branch %s not found, using SHA: %s", pr_branch, head_sha)
 
     json_content, json_changed = get_and_update_json_if_changed(
-        target_repo, "parent-repo", pr_branch, changed_files
+        target_repo, ref, changed_files
     )
 
     sync_mapping = get_sync_mapping(json_content)
@@ -660,7 +633,7 @@ def main() -> None:
         sys.exit(0)
 
     sync_result = run_sync(
-        SyncConfig(target_repo, changed_files, json_content, json_changed, pr_branch)
+            SyncConfig(target_repo, changed_files, json_content, json_changed, ref)
     )
 
     if sync_result.has_changes:
