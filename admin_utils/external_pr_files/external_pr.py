@@ -612,17 +612,24 @@ def main() -> None:
 
     pr_branch, changed_files, head_sha = get_pr_info(repo_name, pr_number, gh_token, target_repo)
 
-    _, _, return_code = run_git(
-        ["show-ref", "--quiet", f"refs/remotes/{pr_branch}"], 
-        cwd=target_repo
-    )
+    import re
+    sha_pattern = re.compile(r'^[0-9a-f]{40}$', re.IGNORECASE)
     
-    if return_code == 0:
-        ref = f"parent-repo/{pr_branch}"
-        logger.info("Branch %s found in parent-repo", pr_branch)
-    else:
+    if sha_pattern.match(pr_branch):
         ref = head_sha
-        logger.info("Branch %s not found, using SHA: %s", pr_branch, head_sha)
+        logger.info("Using SHA directly: %s", head_sha)
+    else:
+        _, _, return_code = run_git(
+            ["show-ref", "--quiet", f"refs/remotes/parent-repo/{pr_branch}"], 
+            cwd=target_repo
+        )
+        
+        if return_code == 0:
+            ref = f"parent-repo/{pr_branch}"
+            logger.info("Branch %s found in parent-repo", pr_branch)
+        else:
+            ref = head_sha
+            logger.info("Branch %s not found, using SHA: %s", pr_branch, head_sha)
 
     json_content, json_changed = get_and_update_json_if_changed(
         target_repo, ref, changed_files
