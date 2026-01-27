@@ -613,7 +613,7 @@ def main() -> None:
     pr_branch, changed_files, head_sha = get_pr_info(repo_name, pr_number, gh_token, target_repo)
 
     _, _, return_code = run_git(
-        ["show-ref", "--quiet", f"refs/remotes/parent-repo/{pr_branch}"], 
+        ["show-ref", "--quiet", f"refs/remotes/{pr_branch}"], 
         cwd=target_repo
     )
     
