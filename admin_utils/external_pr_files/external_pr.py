@@ -612,8 +612,14 @@ def main() -> None:
 
     pr_branch, changed_files, head_sha = get_pr_info(repo_name, pr_number, gh_token, target_repo)
 
-    if check_branch_exists(pr_branch, target_repo):
+    _, _, return_code = run_git(
+        ["show-ref", "--quiet", f"refs/remotes/parent-repo/{pr_branch}"], 
+        cwd=target_repo
+    )
+    
+    if return_code == 0:
         ref = f"parent-repo/{pr_branch}"
+        logger.info("Branch %s found in parent-repo", pr_branch)
     else:
         ref = head_sha
         logger.info("Branch %s not found, using SHA: %s", pr_branch, head_sha)
