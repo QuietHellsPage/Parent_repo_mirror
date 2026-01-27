@@ -344,7 +344,7 @@ def get_sync_mapping(json_content: Optional[dict]) -> list[tuple[str, ...]]:
 
 
 def sync_files_from_pr(
-    repo_path: str, ref: str, sync_mapping: list[tuple[str, ...]]
+    repo_path: str, remote_name: str, ref: str, sync_mapping: list[tuple[str, ...]]
 ) -> bool:
     """
     Sync files from PR using ref (branch name or SHA)
@@ -357,7 +357,7 @@ def sync_files_from_pr(
             run_mkdir(["-p", str(target_dir)], cwd=repo_path)
 
         stdout, _, return_code = run_git(
-            ["show", f"{ref}:{source_path}"],
+            ["show", f"{remote_name}/{ref}:{source_path}"],
             cwd=repo_path,
         )
 
