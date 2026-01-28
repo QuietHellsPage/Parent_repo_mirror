@@ -14,7 +14,7 @@ from tap import Tap
 
 from config.cli_unifier import _run_console_tool, handles_console_error
 from config.console_logging import get_child_logger
-from config.constants import SYNC_CONFIG_PATH
+from config.constants import TRACKED_JSON_PATH
 
 logger = get_child_logger(__file__)
 
@@ -61,7 +61,7 @@ class SyncConfig:
     changed_files: list[str]
     json_content: Optional[dict]
     json_changed: bool
-    commit_sha: str  # Changed from pr_branch to commit_sha
+    commit_sha: str
 
 
 @dataclass(slots=True)
@@ -167,7 +167,7 @@ def get_pr_data(repo_name: str, pr_number: str) -> dict[str, Any]:
             "--repo",
             repo_name,
             "--json",
-            "headRefName,headRepository,headRepositoryOwner,files,commits",
+            "files,commits",
         ]
     )
 
@@ -294,14 +294,13 @@ def add_remote_and_fetch(remote_name: str, repo_url: str, repo_path: str) -> Non
 
 
 def get_and_update_json_if_changed(
-    repo_path: str, remote_name: str, commit_sha: str, changed_files: list[str]
+    repo_path: str, commit_sha: str, changed_files: list[str]
 ) -> tuple[Optional[dict], bool]:
     """
     Get json content from specific commit
 
     Args:
         repo_path (str): Path to repo.
-        remote_name (str): Remote name.
         commit_sha (str): Commit SHA.
         changed_files (list[str]): Paths to changed files.
 
@@ -309,10 +308,10 @@ def get_and_update_json_if_changed(
         tuple[Optional[dict], bool]: JSON content from remote branch.
     """
     json_content = None
-    json_changed = SYNC_CONFIG_PATH in changed_files
+    json_changed = TRACKED_JSON_PATH in changed_files
 
     stdout, _, return_code = run_git(
-        ["show", f"{commit_sha}:{SYNC_CONFIG_PATH}"],
+        ["show", f"{commit_sha}:{TRACKED_JSON_PATH}"],
         cwd=repo_path,
     )
 
@@ -320,17 +319,17 @@ def get_and_update_json_if_changed(
         json_content = json.loads(stdout)
 
         if json_changed:
-            json_path = Path(repo_path) / SYNC_CONFIG_PATH
+            json_path = Path(repo_path) / TRACKED_JSON_PATH
             json_path.parent.mkdir(parents=True, exist_ok=True)
 
             with open(json_path, "w", encoding="utf-8") as f:
                 f.write(stdout)
 
-            run_git(["add", SYNC_CONFIG_PATH], cwd=repo_path)
+            run_git(["add", TRACKED_JSON_PATH], cwd=repo_path)
     elif json_changed:
-        json_path = Path(repo_path) / SYNC_CONFIG_PATH
+        json_path = Path(repo_path) / TRACKED_JSON_PATH
         if json_path.exists():
-            run_git(["rm", SYNC_CONFIG_PATH], cwd=repo_path)
+            run_git(["rm", TRACKED_JSON_PATH], cwd=repo_path)
             json_content = {}
 
     return json_content, json_changed
@@ -350,24 +349,23 @@ def get_sync_mapping(json_content: Optional[dict]) -> list[tuple[str, ...]]:
 
     if not json_content:
         return []
-    pairs = json_content.get("tracked_sync_files")
-    for pair in pairs:
-        source = pair.get("source")
-        target = pair.get("target")
+
+    for item in json_content:
+        source = item.get("source")
+        target = item.get("target")
         if source and target:
             sync_mapping.append((source, target))
     return sync_mapping
 
 
 def sync_files_from_pr(
-    repo_path: str, remote_name: str, commit_sha: str, sync_mapping: list[tuple[str, ...]]
+    repo_path: str, commit_sha: str, sync_mapping: list[tuple[str, ...]]
 ) -> bool:
     """
     Sync files from PR into target repo
 
     Args:
         repo_path (str): Path to repo.
-        remote_name (str): Remote name.
         commit_sha (str): Commit SHA.
         sync_mapping (list[tuple[str, ...]]): Content of JSON file.
 
@@ -556,7 +554,7 @@ def prepare_target_repo(target_repo: str, branch_name: str, gh_token: str) -> No
 
 def get_pr_info(
     repo_name: str, pr_number: str, gh_token: str, target_repo: str
-) -> tuple[str, str, list[str]]:
+) -> tuple[str, list[str]]:
     """
     Get info about changes in PR from source repo
 
@@ -567,7 +565,7 @@ def get_pr_info(
         target_repo (str): Name of target repo.
 
     Returns:
-        tuple[str, str, list[str]]: Name of needed branch, commit SHA and changed files.
+        tuple[str, list[str]]: Commit SHA and changed files.
     """
     pr_data = get_pr_data(repo_name, pr_number)
 
@@ -575,18 +573,11 @@ def get_pr_info(
         logger.error("PR data in source repo not found")
         sys.exit(0)
 
-    pr_branch = pr_data.get("headRefName", "")
-    if not pr_branch:
-        logger.error("Could not get PR branch information")
-        sys.exit(0)
-
-    # Get the latest commit SHA from PR
     commits = pr_data.get("commits", [])
     if not commits:
         logger.error("No commits found in PR %s", pr_number)
         sys.exit(0)
-    
-    # Get the most recent commit SHA
+
     commit_sha = commits[-1]["oid"] if commits else ""
     if not commit_sha:
         logger.error("Could not get commit SHA from PR %s", pr_number)
@@ -605,7 +596,7 @@ def get_pr_info(
         "parent-repo", f"https://{gh_token}@github.com/{repo_name}.git", target_repo
     )
 
-    return pr_branch, commit_sha, changed_files
+    return commit_sha, changed_files
 
 
 def run_sync(sync_config: SyncConfig) -> SyncResult:
@@ -625,7 +616,7 @@ def run_sync(sync_config: SyncConfig) -> SyncResult:
 
     sync_needed_files: list[tuple[str, ...]] = []
     for file in sync_config.changed_files:
-        if file == SYNC_CONFIG_PATH:
+        if file == TRACKED_JSON_PATH:
             continue
 
         for source, target in sync_mapping:
@@ -635,7 +626,7 @@ def run_sync(sync_config: SyncConfig) -> SyncResult:
 
     if sync_needed_files:
         has_synced = sync_files_from_pr(
-            sync_config.target_repo, "parent-repo", sync_config.commit_sha, sync_needed_files
+            sync_config.target_repo, sync_config.commit_sha, sync_needed_files
         )
         has_changes = has_changes or has_synced
 
@@ -654,15 +645,15 @@ def main() -> None:
 
     prepare_target_repo(target_repo, branch_name, gh_token)
 
-    _, commit_sha, changed_files = get_pr_info(repo_name, pr_number, gh_token, target_repo)
+    commit_sha, changed_files = get_pr_info(repo_name, pr_number, gh_token, target_repo)
 
     json_content, json_changed = get_and_update_json_if_changed(
-        target_repo, "parent-repo", commit_sha, changed_files
+        target_repo, commit_sha, changed_files
     )
 
     sync_mapping = get_sync_mapping(json_content)
     has_files_to_sync = any(
-        file != SYNC_CONFIG_PATH and any(source == file for source, _ in sync_mapping)
+        file != TRACKED_JSON_PATH and any(source == file for source, _ in sync_mapping)
         for file in changed_files
     )
 
