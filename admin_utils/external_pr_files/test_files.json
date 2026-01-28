@@ -58,5 +58,9 @@
   {
     "source": "123.txt",
     "target": "123.txt"
+  },
+  {
+    "source": "meemm.txt",
+    "target": "Parent_repo_mirror/meemm.txt"
   }
 ]
