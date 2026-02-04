@@ -9,8 +9,8 @@ PROJECT_CONFIG_PATH = PROJECT_ROOT / "project_config.json"
 SYNC_CONFIG_PATH = (PROJECT_ROOT / "project_config.json").relative_to(PROJECT_ROOT)
 CONFIG_PACKAGE_PATH = PROJECT_ROOT / "config"
 CORE_UTILS_PACKAGE_PATH = PROJECT_ROOT / "core_utils"
-TRACKED_JSON_PATH = str((PROJECT_ROOT /
+TRACKED_JSON_PATH = (PROJECT_ROOT /
                          "admin_utils" /
                          "external_pr_files" /
-                         "test_files.json").relative_to(PROJECT_ROOT))
+                         "test_files.json").relative_to(PROJECT_ROOT)
 FLOAT_TOLERANCE = 4
