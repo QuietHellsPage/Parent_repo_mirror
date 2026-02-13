@@ -308,13 +308,21 @@ def get_json_from_source(source_ref: str, target_repo: str) -> tuple[Optional[di
     source_sha = None
     target_sha = None
 
-    stdout, _, rc = run_git(["rev-parse", f"{source_ref}:{TRACKED_JSON_PATH}"], cwd=target_repo)
+    stdout, _, rc = _run_console_tool(
+        "git",
+        ["rev-parse", f"{source_ref}:{TRACKED_JSON_PATH}"],
+        cwd=target_repo
+    )
     if rc == 0:
         source_sha = stdout.strip()
     else:
         logger.info("JSON file not found in source ref %s", source_ref)
 
-    stdout, _, rc = run_git(["rev-parse", f"origin/main:{TRACKED_JSON_PATH}"], cwd=target_repo)
+    stdout, _, rc = _run_console_tool(
+        "git",
+        ["rev-parse", f"origin/main:{TRACKED_JSON_PATH}"],
+        cwd=target_repo
+    )
     if rc == 0:
         target_sha = stdout.strip()
     else:
@@ -330,7 +338,11 @@ def get_json_from_source(source_ref: str, target_repo: str) -> tuple[Optional[di
 
     json_changed = True
     if source_sha is not None:
-        stdout, _, rc = run_git(["show", f"{source_ref}:{TRACKED_JSON_PATH}"], cwd=target_repo)
+        stdout, _, rc = _run_console_tool(
+            "git",
+            ["show", f"{source_ref}:{TRACKED_JSON_PATH}"],
+            cwd=target_repo
+        )
         if rc == 0 and stdout:
             json_content = json.loads(stdout)
             json_path.parent.mkdir(parents=True, exist_ok=True)
@@ -387,7 +399,11 @@ def sync_files_from_source(
     """
     has_changes = False
     for source_path, target_path in sync_list:
-        stdout, _, rc = run_git(["show", f"{source_ref}:{source_path}"], cwd=repo_path)
+        stdout, _, rc = _run_console_tool(
+            "git",
+            ["show", f"{source_ref}:{source_path}"],
+            cwd=repo_path
+        )
         full_target_path = Path(repo_path) / target_path
 
         if rc == 0 and stdout:
@@ -431,17 +447,19 @@ def run_sync(
         files_to_sync = []
 
         for source_path, target_path in sync_mapping:
-            source_sha, _, rc_src = run_git(
-                ["rev-parse", f"{source_ref}:{source_path}"], cwd=target_repo
+            stdout, _, rc_src = _run_console_tool(
+                "git",
+                ["rev-parse", f"{source_ref}:{source_path}"],
+                cwd=target_repo
             )
-            if rc_src != 0:
-                source_sha = None
+            source_sha = stdout.strip() if rc_src == 0 else None
 
-            target_sha, _, rc_tgt = run_git(
-                ["rev-parse", f"origin/main:{target_path}"], cwd=target_repo
+            stdout, _, rc_tgt = _run_console_tool(
+                "git",
+                ["rev-parse", f"origin/main:{target_path}"],
+                cwd=target_repo
             )
-            if rc_tgt != 0:
-                target_sha = None
+            target_sha = stdout.strip() if rc_tgt == 0 else None
 
             if source_sha != target_sha:
                 files_to_sync.append((source_path, target_path))
