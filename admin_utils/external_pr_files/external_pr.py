@@ -348,7 +348,7 @@ def get_json_from_source(source_ref: str, target_repo: str) -> tuple[Optional[di
     return json_content, json_changed
 
 
-def get_sync_mapping(json_content: Optional[dict]) -> list[tuple[str, ...]]:
+def get_sync_mapping(json_content: Optional[dict]) -> list[tuple[str, str]]:
     """
     Extract sync mapping from JSON.
 
@@ -356,7 +356,7 @@ def get_sync_mapping(json_content: Optional[dict]) -> list[tuple[str, ...]]:
         json_content (Optional[dict]): Content of JSON file.
 
     Returns:
-        list[tuple[str, ...]]: Mapping of source/target files from JSON.
+        list[tuple[str, str]]: Mapping of source/target files from JSON.
     """
     sync_mapping: list[tuple[str, str]] = []
 
@@ -372,7 +372,7 @@ def get_sync_mapping(json_content: Optional[dict]) -> list[tuple[str, ...]]:
 
 
 def sync_files_from_source(
-    repo_path: str, source_ref: str, sync_list: list[tuple[str, ...]]
+    repo_path: str, source_ref: str, sync_list: list[tuple[str, str]]
 ) -> bool:
     """
     Sync files from source reference into target repo according to mapping.
@@ -380,7 +380,7 @@ def sync_files_from_source(
     Args:
         repo_path (str): Path to target repo.
         source_ref (str): Reference in source repo.
-        sync_list (list[tuple[str, ...]]): List of (source_path, target_path).
+        sync_list (list[tuple[str, str]]): List of (source_path, target_path).
 
     Returns:
         bool: True if any file was updated/added/removed.
