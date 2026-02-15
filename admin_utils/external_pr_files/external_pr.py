@@ -76,7 +76,7 @@ class SyncResult:
 
 
 # Wrappers for basic commands
-@handles_console_error(ok_codes=(0, 1))
+@handles_console_error(ok_codes=(0, 1, 128))
 def run_git(args: list[str], **kwargs: str) -> tuple[str, str, int]:
     """
     Run git command via imported function
